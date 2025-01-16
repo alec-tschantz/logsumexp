@@ -1,0 +1,160 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\begin{document}
+
+
+%-------------------------------------------
+\section{Self-Attention}
+
+\subsection{Setup and Notation}
+
+Let \(\bm{X} = [\bm{x}_1, \ldots, \bm{x}_N]\) be a set of \(N\) tokens in \(\mathbb{R}^d\). We define:
+\[
+\bm{Q} = \bm{W}^Q \bm{X}, 
+\quad
+\bm{K} = \bm{W}^K \bm{X},
+\]
+where \(\bm{W}^Q, \bm{W}^K \in \mathbb{R}^{d \times d}\) are learnable parameters. The columns of \(\bm{Q}\) are \(\bm{q}_i = \bm{W}^Q \bm{x}_i\), and those of \(\bm{K}\) are \(\bm{k}_i = \bm{W}^K \bm{x}_i\).
+
+\subsection{Energy Function}
+
+A simple energy for self-attention (SA) can be written as the negative log partition function:
+\begin{equation}
+E^{\text{SA}}(\bm{X}) 
+~=~ -\frac{1}{\beta} \sum_{c=1}^N \log \biggl(\,\sum_{b=1}^N \exp \bigl(\beta \,\bm{k}_b^\top \bm{q}_c \bigr)\biggr),
+\label{eq:sa-energy}
+\end{equation}
+where \(\beta > 0\) is a (scaled) inverse temperature. The term inside the log is the \(\mathrm{softmax}\) partition for the \(c\)-th column (token).
+
+\subsection{Gradient}
+
+We compute the gradient of \eqref{eq:sa-energy} w.r.t.\ a token \(\bm{x}_i\). Note that
+\[
+\bm{k}_b^\top \bm{q}_c \;=\; 
+(\bm{W}^K \bm{x}_b)^\top (\bm{W}^Q \bm{x}_c).
+\]
+Define the attention probabilities:
+\[
+p_{bc} \;=\; 
+\frac{\exp \bigl(\beta\,\bm{k}_b^\top \bm{q}_c \bigr)}{\sum_{u=1}^N \exp \bigl(\beta\,\bm{k}_u^\top \bm{q}_c \bigr)}
+\;=\;
+\mathrm{softmax}_b \bigl(\beta\,\bm{k}_b^\top \bm{q}_c\bigr).
+\]
+Then, by applying the chain rule,
+\[
+-\frac{\partial E^{\text{SA}}}{\partial \bm{x}_i}
+~=~
+\sum_{c=1}^N \sum_{b=1}^N \; p_{bc} \;\Bigl[
+\,\delta_{b,i}\,(\bm{W}^K)^\top (\bm{W}^Q\,\bm{x}_c)
+~+~
+\delta_{c,i}\,(\bm{W}^Q)^\top (\bm{W}^K\,\bm{x}_b)\Bigr].
+\]
+Here, \(\delta_{b,i}\) equals 1 if \(b=i\) and 0 otherwise. This gradient can be used in gradient-based or fixed-point iteration to update each \(\bm{x}_i\), showing a direct parallel to standard self-attention updates (where \(\bm{x}_i\) interacts with \(\bm{x}_b\) via keys \(\bm{k}_b\) and queries \(\bm{q}_i\)).
+
+\bigskip
+
+%-------------------------------------------
+\section{Hopfield Networks}
+
+\subsection{Setup and Notation}
+
+Consider a set of tokens \(\bm{X} = [\bm{x}_1, \ldots, \bm{x}_N]\) as before. Now we have a memory matrix 
+\(\bm{M} \in \mathbb{R}^{K \times d}\). Denote its rows by \(\bm{m}_\mu^\top\), \(\mu = 1,\ldots,K\). Each row \(\bm{m}_\mu \in \mathbb{R}^d\) is a memory vector.
+
+\subsection{Energy Function}
+
+A classical Hopfield energy (with a chosen nonlinearity) can be written as:
+\begin{equation}
+E^{\text{HN}}(\bm{X}) 
+~=~
+-\sum_{b=1}^N \sum_{\mu=1}^K 
+G\ \Bigl(\bm{m}_\mu^\top\,\bm{x}_b\Bigr),
+\label{eq:hopfield-energy}
+\end{equation}
+where \(G(\cdot)\) is a primitive of an activation function \(r(\cdot)\), i.e.\ \(G'(z) = r(z)\). For softmax-based Hopfield networks, \(r(\cdot)\) would be the corresponding \(\mathrm{softmax}\)-derived term.
+
+\subsection{Gradient}
+
+Differentiating \eqref{eq:hopfield-energy} w.r.t.\ a token \(\bm{x}_i\) gives
+\[
+\frac{\partial E^{\text{HN}}}{\partial \bm{x}_i}
+~=~
+-\sum_{\mu=1}^K
+\frac{\partial}{\partial \bm{x}_i} \,
+G \bigl(\bm{m}_\mu^\top \bm{x}_i\bigr).
+\]
+Since \(G'(z) = r(z)\),
+\[
+\frac{\partial}{\partial \bm{x}_i}\,G \bigl(\bm{m}_\mu^\top \bm{x}_i\bigr)
+~=~
+r \bigl(\bm{m}_\mu^\top \bm{x}_i\bigr)\,\bm{m}_\mu.
+\]
+Hence,
+\[
+-\frac{\partial E^{\text{HN}}}{\partial \bm{x}_i}
+~=~
+\sum_{\mu=1}^K
+r \bigl(\bm{m}_\mu^\top \bm{x}_i\bigr)\,\bm{m}_\mu.
+\]
+This shows how each token \(\bm{x}_i\) is pulled toward the memory vectors \(\bm{m}_\mu\), weighted by the activation \(r\).
+
+\bigskip
+
+%-------------------------------------------
+\section{Slot Attention}
+
+\subsection{Setup and Notation}
+
+Slot attention can be viewed as a form of \emph{cross-attention} in which a set of \emph{slots}---denoted by \(\bm{S} = [\bm{s}_1, \ldots, \bm{s}_S]\)---iteratively query a set of input tokens \(\bm{X} = [\bm{x}_1, \ldots, \bm{x}_N]\).  We define
+\[
+\bm{k}_s = \bm{W}^K \,\bm{s}_s,
+\quad
+\bm{q}_x = \bm{W}^Q \,\bm{x}_x,
+\]
+where \(\bm{W}^K, \bm{W}^Q\) are learnable parameters.  The \(\bm{k}_s\) become \emph{keys} for the slots, while the \(\bm{q}_x\) are \emph{queries} from the inputs.  We say ``inverted cross attention'' because each slot effectively attends \emph{to} the tokens.
+
+\subsection{Energy Function}
+
+A simple energy for slot attention is the negative log-sum-exp over slot-key and input-query matches:
+\begin{equation}
+E^{\text{Slot}}(\bm{S};\,\bm{X})
+~=~
+-\frac{1}{\beta}\,\sum_{s=1}^S
+\log \Bigl(\sum_{x=1}^N \exp \bigl(\beta\,\bm{k}_s^\top \bm{q}_x\bigr)\Bigr).
+\label{eq:slot-energy}
+\end{equation}
+Minimizing this energy encourages each slot \(\bm{s}_s\) to \emph{explain} (or align with) tokens \(\bm{x}_x\) that yield large \(\bm{k}_s^\top \bm{q}_x\).
+
+\subsection{Gradient}
+
+Let
+\[
+p_{sx}
+~=~
+\mathrm{softmax}_x
+ \Bigl(\beta \,\bm{k}_s^\top \bm{q}_x\Bigr)
+~=~
+\frac{\exp(\beta\,\bm{k}_s^\top \bm{q}_x)}{\sum_{u=1}^N \exp(\beta\,\bm{k}_s^\top \bm{q}_u)}.
+\]
+Then differentiating \eqref{eq:slot-energy} with respect to \(\bm{s}_s\) yields:
+\[
+-\frac{\partial E^{\text{Slot}}}{\partial \bm{s}_s}
+~=~
+\beta \,(\bm{W}^K)^\top \,\sum_{x=1}^N 
+p_{sx}\,\bm{q}_x.
+\]
+Recalling \(\bm{q}_x = \bm{W}^Q\,\bm{x}_x\), we see that
+\[
+-\frac{\partial E^{\text{Slot}}}{\partial \bm{s}_s}
+~=~
+\beta \,(\bm{W}^K)^\top \,\sum_{x=1}^N p_{sx}\,\bm{W}^Q\,\bm{x}_x.
+\]
+Hence, a gradient-based or fixed-point update step moves \(\bm{s}_s\) in proportion to the weighted sum of input tokens \(\bm{x}_x\).  This matches the core \emph{slot attention} mechanism: each slot is updated by attending to relevant tokens and aggregating their features.
+
+\end{document}

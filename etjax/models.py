@@ -5,17 +5,16 @@ from jax import Array, numpy as jnp, random as jr, nn
 class SelfAttention(eqx.Module):
     Wq: Array
     Wk: Array
-    query_dim: int = eqx.field(static=True)
 
     def __init__(self, num_heads: int, dim: int, query_dim: int, key: jr.PRNGKey):
         super().__init__()
         k1, k2 = jr.split(key)
         self.Wk = jr.normal(k1, (dim, num_heads, query_dim))
         self.Wq = jr.normal(k2, (dim, num_heads, query_dim))
-        self.query_dim = query_dim
 
     def __call__(self, x: Array) -> Array:
-        beta = 1 / jnp.sqrt(self.query_dim)
+        D = x.shape[-1]
+        beta = 1 / jnp.sqrt(D)
         K = jnp.einsum("kd,hzd->khz", x, self.Wk)
         Q = jnp.einsum("qd,hzd->qhz", x, self.Wq)
         A = nn.logsumexp(beta * jnp.einsum("qhz,khz->hqk", Q, K), -1)
@@ -51,5 +50,5 @@ class Hopfield(eqx.Module):
         self.Xi = jr.normal(key, (dim, num_mems))
 
     def __call__(self, x: Array):
-        hid = jnp.einsum("nd,dm->nm", g, self.Xi)
+        hid = jnp.einsum("nd,dm->nm", x, self.Xi)
         return -0.5 * (nn.relu(hid) ** 2).sum()
