@@ -189,6 +189,69 @@ Here,
        {\sum_{u \in \mathcal{P}(a)} \exp(\mathrm{match}(\bm{v}_a,\bm{v}_u))}\), 
 and similarly for \(\text{softmax}_{a}(\mathrm{match}(\bm{v}_c,\bm{v}_a))\).
 
-
+\paragraph{Proof}
+To find the gradient w.r.t.\ a single vector \(\bm{v}_a\), we write
+\begin{equation}
+\begin{aligned}
+\frac{\partial E}{\partial \bm{v}_a}
+&=
+-\sum_{c=1}^A
+\frac{\partial}{\partial \bm{v}_a}
+\ln\!\Bigl(\!\sum_{p \in \mathcal{P}(c)} \exp\!\bigl(\mathrm{match}(\bm{v}_c,\bm{v}_p)\bigr)\Bigr) \\[6pt]
+&=
+-\sum_{c=1}^A
+\frac{1}{\sum_{p \in \mathcal{P}(c)} \exp(\mathrm{match}(\bm{v}_c,\bm{v}_p))}
+\;\sum_{p \in \mathcal{P}(c)}
+\frac{\partial}{\partial \bm{v}_a}
+\exp\!\bigl(\mathrm{match}(\bm{v}_c,\bm{v}_p)\bigr).
+\end{aligned}
+\end{equation}
+Applying the chain rule inside the sum:
+\begin{equation}
+\frac{\partial}{\partial \bm{v}_a}
+\exp\!\bigl(\mathrm{match}(\bm{v}_c,\bm{v}_p)\bigr)
+=
+\exp\!\bigl(\mathrm{match}(\bm{v}_c,\bm{v}_p)\bigr)\,
+\frac{\partial}{\partial \bm{v}_a}
+\mathrm{match}(\bm{v}_c,\bm{v}_p).
+\end{equation}
+Hence,
+\begin{equation}
+\begin{aligned}
+-\frac{\partial E}{\partial \bm{v}_a}
+&=
+\sum_{c=1}^A
+\sum_{p \in \mathcal{P}(c)}
+\underbrace{
+\frac{\exp(\mathrm{match}(\bm{v}_c,\bm{v}_p))}
+     {\sum_{u \in \mathcal{P}(c)} \exp(\mathrm{match}(\bm{v}_c,\bm{v}_u))}
+}_{\text{softmax}_{p}(\mathrm{match}(\bm{v}_c,\bm{v}_p))}
+\;\frac{\partial}{\partial \bm{v}_a}
+\mathrm{match}(\bm{v}_c,\bm{v}_p).
+\end{aligned}
+\end{equation}
+Noting that
+\(\mathrm{match}(\bm{v}_c,\bm{v}_p)\)
+only depends on \(\bm{v}_a\) if \(c=a\) or \(p=a\), we collect these terms:
+\begin{equation}
+\begin{aligned}
+-\frac{\partial E}{\partial \bm{v}_a}
+&=
+\underbrace{
+\sum_{p \in \mathcal{P}(a)}
+\text{softmax}_{p}\!\Bigl(\mathrm{match}(\bm{v}_a,\bm{v}_p)\Bigr)\,
+\frac{\partial}{\partial \bm{v}_a}
+\mathrm{match}(\bm{v}_a,\bm{v}_p)
+}_{\text{``explained by parents''}}
+\\
+&= \underbrace{
+\sum_{\substack{c=1\\a \in \mathcal{P}(c)}}^A
+\text{softmax}_{a}\!\Bigl(\mathrm{match}(\bm{v}_c,\bm{v}_a)\Bigr)\,
+\frac{\partial}{\partial \bm{v}_a}
+\mathrm{match}(\bm{v}_c,\bm{v}_a)
+}_{\text{``explaining children''}}.
+\end{aligned}
+\end{equation}
+This shows how each \(\bm{v}_a\) is pulled by its own parents and also by the children that depend on it.
 
 \end{document}
