@@ -4,15 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 version = "0.1.0"
-name = "energy-transformer"
-description = "Energy Transformer"
+name = "logsumexp"
 requires-python = ">=3.10,<3.12"
 dependencies = [
     "jax==0.4.38",
-    "equinox==0.11.11",
-    "optax==0.2.4"
+    "optax==0.2.4",
+    "equinox==0.11.11"
 ]
 
-
 [tool.setuptools.packages.find]
-include = ["etjax"]
+include = ["logsumexp"]

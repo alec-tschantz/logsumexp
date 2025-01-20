@@ -44,7 +44,7 @@ class SlotAttention(eqx.Module):
 
 
 class Hopfield(eqx.Module):
-    Xi: jax.Array
+    Xi: Array
 
     def __init__(self, dim: int, num_mems: int, key: jr.PRNGKey):
         self.Xi = jr.normal(key, (dim, num_mems))
