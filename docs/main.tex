@@ -5,253 +5,308 @@
 
 \begin{document}
 
-\title{Attention via \(\log\sum\exp\) energy}
+\title{Attention via \(\log \sum \exp\) energy}
 \author{Alexander Tschantz}
 \date{\today}
 \maketitle
 
-\section{Gaussian Mixture Models (GMMs)}
+\section{General Framework}
+We consider a directed graph of \(A\) nodes, where each node is a vector \(\{\bm{v}_a\}_{a=1}^A\) with \(\bm{v}_a \in \mathbb{R}^d\).  Each node \(\bm{v}_a\) has a set of parents \(\mathcal{P}(a) \subseteq \{1,2,\ldots,A\}\).  
 
+We define a generic \emph{similarity} function
+\[
+\mathrm{sim}\bigl(\bm{v}_a,\bm{v}_p\bigr),
+\]
+which measures how well \(\bm{v}_a\) is ``explained by'' or ``aligned with'' its parent \(\bm{v}_p\). This function may have parameters, as in a dot-product model \(\bm{v}_a^\top \bm{v}_p\), or a conditional-probability-based model such as a Gaussian log-likelihood term \(-\tfrac12(\bm{v}_a-\bm{v}_p)^\top \bm{\Sigma}^{-1}(\bm{v}_a-\bm{v}_p)\). 
+
+\subsection{Energy Function}
+Each node \(\bm{v}_a\) has a \(\log\sum\exp\)-type term over its parents.  We sum these across all nodes to define the total energy:
+\[
+E\bigl(\{\bm{v}_a\}\bigr)
+\;=\;
+-\sum_{a=1}^A
+\ln \Bigl(\sum_{p\,\in\,\mathcal{P}(a)}
+\exp \bigl(\mathrm{sim}(\bm{v}_a,\bm{v}_p)\bigr)\Bigr).
+\]
+Informally, each \(\bm{v}_a\) seeks to place high mass on those parents \(\bm{v}_p\) yielding large similarity scores.
+
+\subsection{Gradient Updates}
+For a single node \(\bm{v}_a\), the gradient of the energy decomposes into two parts, reflecting two ways in which \(\bm{v}_a\) can appear in the summations:
+\[
+-\frac{\partial E}{\partial \bm{v}_a}
+\;=\;
+\underbrace{
+\sum_{p \in \mathcal{P}(a)}
+\text{softmax}_{p}\!\Bigl(\mathrm{sim}(\bm{v}_a,\bm{v}_p)\Bigr)\,
+\frac{\partial}{\partial \bm{v}_a}
+\mathrm{sim}\bigl(\bm{v}_a,\bm{v}_p\bigr)
+}_{\text{(``being explained by its parents'')}}
+\;+\;
+\underbrace{
+\sum_{c \,\colon\, a \in \mathcal{P}(c)}
+\text{softmax}_{a}\!\Bigl(\mathrm{sim}(\bm{v}_c,\bm{v}_a)\Bigr)\,
+\frac{\partial}{\partial \bm{v}_a}
+\mathrm{sim}\bigl(\bm{v}_c,\bm{v}_a\bigr)
+}_{\text{(``explaining its children'')}}.
+\]
+Above, the summation \(\sum_{p \in \mathcal{P}(a)}\) iterates over the parents of \(a\), while \(\sum_{c : a \in \mathcal{P}(c)}\) iterates over all children \(c\) such that \(a\) is in their parent set.  The \(\text{softmax}\) is taken over the appropriate parent indices in each case.
+
+\subsection{Proof of Gradient (Appendix)}
+A full derivation, with explicit sums over \(\mathcal{a} \in \mathcal{P}(c)\), is given in Appendix~\ref{appendix:proof}.  There we show how collecting terms in the derivative leads precisely to the two-term decomposition above.
+
+\section{Gaussian Mixture Models (GMMs)}
 \paragraph{Setup.}
 Let \(\bm{X} = [\bm{x}_1, \ldots, \bm{x}_N]\), where each \(\bm{x}_i \in \mathbb{R}^d\). 
-We consider \(K\) mixture components, each with mean \(\bm{\mu}_k \in \mathbb{R}^d\) and covariance \(\bm{\Sigma}_k\). 
-Define 
+We consider \(K\) mixture components, each with mean \(\bm{\mu}_k \in \mathbb{R}^d\) and covariance \(\bm{\Sigma}_k\).  Defining \(\pi_k\) as the mixing proportion, a standard GMM log-likelihood term can be written in a form that matches our framework.
+
 \[
-\bm{A}_{ik} 
-\;=\; 
-\ln \pi_k 
--\tfrac{1}{2}\,(\bm{x}_i - \bm{\mu}_k)^\top \bm{\Sigma}_k^{-1}(\bm{x}_i - \bm{\mu}_k).
+\text{In particular, define:}
 \]
-The negative log-likelihood (energy) is
-\begin{equation}
+\[
+\begin{aligned}
+\bm{A}_{ik}
+&\;=\;
+\ln \pi_k 
+\;-\;\tfrac{1}{2}\,(\bm{x}_i - \bm{\mu}_k)^\top \bm{\Sigma}_k^{-1}(\bm{x}_i - \bm{\mu}_k)
+\quad\in\;\mathbb{R}^{N\times K}.
+\end{aligned}
+\]
+
+\paragraph{Energy.}
+\[
 E^{\mathrm{GMM}}(\bm{X}, \{\bm{\mu}_k\})
 \;=\;
 -\sum_{i=1}^N 
-\ln \Bigl(\sum_{k=1}^K \exp(\bm{A}_{ik})\Bigr).
-\label{eq:gmm-energy}
-\end{equation}
-Minimizing \eqref{eq:gmm-energy} w.r.t.\ each \(\bm{\mu}_k\) recovers the usual EM solution.
+\ln \Bigl(\sum_{k=1}^K 
+\exp\bigl(\bm{A}_{ik}\bigr)\Bigr).
+\]
 
 \paragraph{Gradient.}
-Taking the derivative of \eqref{eq:gmm-energy} w.r.t.\ \(\bm{\mu}_k\) yields
+If we differentiate w.r.t.\ \(\bm{\mu}_k\), then
 \[
 -\frac{\partial E^{\mathrm{GMM}}}{\partial \bm{\mu}_k}
 \;=\;
 \sum_{i=1}^N 
-\text{softmax}_k(\bm{A}_{ik})
-\;\bm{\Sigma}_k^{-1}
-\bigl(\bm{x}_i - \bm{\mu}_k\bigr),
+\text{softmax}_k\!\bigl(\bm{A}_{ik}\bigr)
+\;\bm{\Sigma}_k^{-1}\bigl(\bm{x}_i - \bm{\mu}_k\bigr).
 \]
-where 
-\(\text{softmax}_k(\bm{A}_{ik}) 
-= \tfrac{\exp(\bm{A}_{ik})}{\sum_{u=1}^K \exp(\bm{A}_{iu})}.\)
-Setting this gradient to zero gives the standard M-step:
+Setting this gradient to zero yields the usual GMM M-step:
 \[
 \bm{\mu}_k
 \;=\;
-\frac{\sum_{i=1}^N \text{softmax}_k(\bm{A}_{ik})\;\bm{x}_i}
-     {\sum_{i=1}^N \text{softmax}_k(\bm{A}_{ik})}.
+\frac{\sum_{i=1}^N 
+\text{softmax}_k\!\bigl(\bm{A}_{ik}\bigr)\;\bm{x}_i}
+     {\sum_{i=1}^N
+     \text{softmax}_k\!\bigl(\bm{A}_{ik}\bigr)}.
 \]
 
 \section{Self-Attention}
-
 \paragraph{Setup.}
 Let \(\bm{X} = [\bm{x}_1, \ldots, \bm{x}_N]\), where each \(\bm{x}_i \in \mathbb{R}^d\).  
-We define 
-\(\bm{Q} = \bm{W}^Q \bm{X}\) and \(\bm{K} = \bm{W}^K \bm{X}\), with \(\bm{W}^Q, \bm{W}^K \in \mathbb{R}^{d\times d}\).  
-Denote by \(\bm{q}_c\) the \(c\)-th column of \(\bm{Q}\) and \(\bm{k}_b\) the \(b\)-th column of \(\bm{K}\).  
-We define the match scores 
-\(\bm{A}_{bc} = \bm{k}_b^\top \bm{q}_c.\)
+We define two learnable weight matrices, \(\bm{W}^Q, \bm{W}^K \in \mathbb{R}^{d \times d}\), and construct
+\[
+\bm{Q} \;=\; \bm{W}^Q\,\bm{X}, 
+\quad
+\bm{K} \;=\; \bm{W}^K\,\bm{X}.
+\]
+Let \(\bm{q}_c\) be the \(c\)-th column of \(\bm{Q}\) and \(\bm{k}_b\) the \(b\)-th column of \(\bm{K}\).  Then we define
+\[
+\text{sim}\bigl(\bm{x}_b, \bm{x}_c\bigr)
+\;\;\widehat{=}\;\;
+\bm{k}_b^\top \bm{q}_c.
+\]
+On a single line, we gather these into the matrix:
+\[
+\begin{aligned}
+\bm{A}_{bc} &= \bm{k}_b^\top \bm{q}_c
+\quad\in\;\mathbb{R}^{N \times N}.
+\end{aligned}
+\]
 
 \paragraph{Energy.}
-\begin{equation}
+\[
 E^{\mathrm{SA}}(\bm{X})
 \;=\;
 -\sum_{c=1}^N 
-\ln \Bigl(\sum_{b=1}^N \exp(\bm{A}_{bc})\Bigr).
-\label{eq:sa-energy}
-\end{equation}
-Minimizing this energy encourages each query \(\bm{q}_c\) to place mass on keys \(\bm{k}_b\) that yield a large dot product.
+\ln \Bigl(\sum_{b=1}^N
+\exp\bigl(\bm{A}_{bc}\bigr)\Bigr).
+\]
 
 \paragraph{Gradient.}
-Differentiating w.r.t.\ a single token \(\bm{x}_i\), the result is:
-\begin{equation}
+Differentiating w.r.t.\ \(\bm{x}_i\) gives two terms, as each token \(\bm{x}_i\) acts both as a “query” for some other tokens and a “key” for yet others:
+\[
 -\frac{\partial E^{\mathrm{SA}}}{\partial \bm{x}_i}
 \;=\;
-\sum_{b=1}^N \text{softmax}_b(\bm{A}_{b,i}) 
-\bm{W}_Q^\top \bm{W}_K \bm{x}_b
+\underbrace{
+\sum_{b=1}^N 
+\text{softmax}_b\!\bigl(\bm{A}_{b,i}\bigr)\,
+\bm{W}_Q^\top \bm{W}_K \,\bm{x}_b
+}_{\text{(query side)}}
 \;+\;
-\sum_{c=1}^N \text{softmax}_i(\bm{A}_{i,c}) 
-\bm{W}_K^\top \bm{W}_Q \bm{x}_c.
-\end{equation}
-The first term (``query side'') matches the usual self-attention aggregation form for the token that is acting as a \emph{query}, while the second (``key side'') arises from \(\bm{x}_i\) also contributing as a \emph{key} for other queries.
+\underbrace{
+\sum_{c=1}^N 
+\text{softmax}_i\!\bigl(\bm{A}_{i,c}\bigr)\,
+\bm{W}_K^\top \bm{W}_Q \,\bm{x}_c
+}_{\text{(key side)}}.
+\]
 
-
-\section{Hopfield Networks (Softmax Version)}
-
+\section{Cross Attention}
 \paragraph{Setup.}
-Let \(\bm{X} = [\bm{x}_1, \ldots, \bm{x}_N]\), each \(\bm{x}_i \in \mathbb{R}^d\).  
-We also have memory vectors \(\bm{m}_\mu \in \mathbb{R}^d\), for \(\mu = 1,\ldots,K\).  
-Define
-\(\bm{A}_{i\mu} = \bm{x}_i^\top \bm{m}_\mu.\)
+In cross attention, we have one set of \emph{query} vectors and a separate set of \emph{key} vectors.  Let
+\(\bm{Q} = \bm{W}^Q\,\bm{X}^Q \in \mathbb{R}^{d \times N_Q}\) 
+and 
+\(\bm{K} = \bm{W}^K\,\bm{X}^K \in \mathbb{R}^{d \times N_K},\)
+where \(\bm{X}^Q\) has \(N_Q\) query tokens and \(\bm{X}^K\) has \(N_K\) key tokens.  
+Denote \(\bm{q}_c\) as the \(c\)-th query column of \(\bm{Q}\) and \(\bm{k}_b\) as the \(b\)-th key column of \(\bm{K}\).  
+
+We define
+\[
+\bm{A}_{b,c}
+\;=\;
+\bm{k}_b^\top \,\bm{q}_c
+\quad\in\;\mathbb{R}^{N_K \times N_Q}.
+\]
+This is a matrix of pairwise similarities between keys and queries.
 
 \paragraph{Energy.}
-\begin{equation}
+\[
+E^{\mathrm{Cross}}(\bm{X}^Q,\bm{X}^K)
+\;=\;
+-\sum_{c=1}^{N_Q}
+\ln \Bigl(
+\sum_{b=1}^{N_K}
+\exp\bigl(\bm{A}_{b,c}\bigr)
+\Bigr).
+\]
+Minimizing this encourages each query \(\bm{q}_c\) to place large mass on keys \(\bm{k}_b\) that yield higher dot-products.
+
+\paragraph{Gradient.}
+As in the self-attention derivation, taking the derivative w.r.t.\ a single query or key token yields sums weighted by the appropriate softmax terms.  For example, w.r.t.\ the query-side vector \(\bm{x}^Q_i\),
+\[
+-\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{x}^Q_i}
+\;=\;
+\sum_{b=1}^{N_K}
+\text{softmax}_b\!\bigl(\bm{A}_{b,i}\bigr)\,
+\bm{W}_Q^\top\,\bm{W}_K\,\bm{x}^K_b
+\;+\;\dots 
+\]
+and similarly a key \(\bm{x}^K_j\) appears in the “explaining children” part of the gradient.
+
+\section{Hopfield Networks (Softmax Version)}
+\paragraph{Setup.}
+We have data vectors \(\bm{X} = [\bm{x}_1,\ldots,\bm{x}_N]\), each \(\bm{x}_i \in \mathbb{R}^d\), and memory vectors \(\bm{m}_\mu \in \mathbb{R}^d\) for \(\mu=1,\ldots,K\).  Define 
+\[
+\bm{A}_{i\mu}
+\;=\;
+\bm{x}_i^\top \,\bm{m}_\mu
+\quad\in\;\mathbb{R}^{N\times K}.
+\]
+
+\paragraph{Energy.}
+\[
 E^{\mathrm{Hopfield}}(\bm{X})
 \;=\;
 -\sum_{i=1}^N
-\ln \Bigl(\sum_{\mu=1}^K \exp(\bm{A}_{i\mu})\Bigr).
-\label{eq:hopfield-energy}
-\end{equation}
-Minimizing \eqref{eq:hopfield-energy} encourages each \(\bm{x}_i\) to align with (or be explained by) a subset of the memory vectors \(\bm{m}_\mu\).
+\ln \Bigl(\sum_{\mu=1}^K
+\exp\!\bigl(\bm{A}_{i\mu}\bigr)\Bigr).
+\]
 
 \paragraph{Gradient.}
 \[
 -\frac{\partial E^{\mathrm{Hopfield}}}{\partial \bm{x}_i}
 \;=\;
 \sum_{\mu=1}^K
-\text{softmax}_\mu(\bm{A}_{i\mu})
+\text{softmax}_\mu\!\bigl(\bm{A}_{i\mu}\bigr)
 \;\bm{m}_\mu.
 \]
-Hence each \(\bm{x}_i\) is updated toward a softmax-weighted combination of the memories.
+Hence each \(\bm{x}_i\) is updated toward a softmax-weighted combination of the memory vectors.
 
-\section{Slot-Attention}
+\section{Slot Attention}
+Slot Attention can be seen as cross attention in which we normalize across slots (queries) for each token (key), rather than the usual normalization across the token dimension.  
 
 \paragraph{Setup.}
-Let \(\bm{S} = [\bm{s}_1,\ldots,\bm{s}_S]\) be \(S\) latent vectors (slots), each \(\bm{s}_s \in \mathbb{R}^d\).  
-We have tokens \(\bm{X} = [\bm{x}_1,\ldots,\bm{x}_N]\), each \(\bm{x}_i \in \mathbb{R}^d\).  
-Define 
-\(\bm{q}_s = \bm{W}^Q \bm{s}_s\) (queries) and \(\bm{k}_x = \bm{W}^K \bm{x}_x\) (keys).  
-Then
-\(\bm{A}_{sx} = \bm{q}_s^\top \bm{k}_x.\)
+Let \(\bm{X} = [\bm{x}_1,\ldots,\bm{x}_N]\) be the set of tokens (e.g.\ image patches), where each \(\bm{x}_j \in \mathbb{R}^d\).  We also have a set of \(S\) latent ``slots'': \(\bm{\mu}_i \in \mathbb{R}^d\) for \(i = 1,\ldots,S\).  As in cross attention, we define learnable transforms:
+\[
+\bm{W}_K,\;\bm{W}_Q \;\;\in\;\mathbb{R}^{d \times d}.
+\]
+The tokens serve as keys (and potentially values), while the slots serve as queries.  However, the key difference is that \emph{each token decides its distribution over slots} (hence the normalization is over \(i\) for each fixed token \(j\)).
 
 \paragraph{Energy.}
-\begin{equation}
-E^{\mathrm{Slot}}(\bm{S})
+We write the negative log-likelihood as a sum over tokens \(j=1,\dots,N\), and in each term we do a \(\log \sum \exp\) over the slots \(i=1,\ldots,S\).  Concretely,
+\[
+E^{\mathrm{Slot}}\bigl(\{\bm{\mu}_i\}\bigr)
 \;=\;
--\sum_{s=1}^S
-\ln \Bigl(\sum_{x=1}^N \exp(\bm{A}_{sx})\Bigr).
-\label{eq:slot-energy}
-\end{equation}
-Each slot \(\bm{s}_s\) is viewed as a "query" over the token set.
+-\sum_{j=1}^N
+\ln \Bigl(\sum_{i=1}^S
+\exp\!\bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\bigr)\Bigr),
+\]
+where 
+\(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)
+=\bigl(\bm{W}_K\,\bm{x}_j\bigr)^\top \bigl(\bm{W}_Q\,\bm{\mu}_i\bigr).\)
+
+
+\[
+\begin{aligned}
+\bm{A}_{j,i}
+&=
+\bigl(\bm{W}_K\,\bm{x}_j\bigr)^\top 
+\bigl(\bm{W}_Q\,\bm{\mu}_i\bigr)
+\quad\in\;\mathbb{R}^{N\times S}.
+\end{aligned}
+\]
 
 \paragraph{Gradient.}
-\begin{equation}
--\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{s}_s}
-\;=\;
-\sum_{x=1}^N \text{softmax}_x(\bm{A}_{sx}) \bm{W}_Q^\top 
-\bm{W}_K \bm{x}_x.
-\end{equation}
-This matches the iterative update step typically used in slot attention, where each slot aggregates a softmax-weighted combination of tokens.
-
-\section{General Framework}
-
-\paragraph{Setup.}
-We consider a collection of nodes (vectors) \(\{\bm{v}_a\}_{a=1}^A\).  Each node \(\bm{v}_a \in \mathbb{R}^d\) can be ``explained by'' a set of parents \(\mathcal{P}(a)\subseteq\{1,\ldots,A\}\), where each parent is another node \(\bm{v}_p\).  We introduce a generic \emph{match} function
+Taking the derivative w.r.t.\ a single slot \(\bm{\mu}_i\) yields
 \[
-\mathrm{match}\bigl(\bm{v}_a,\,\bm{v}_p\bigr),
+-\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{\mu}_i}
+\;=\;
+\sum_{j=1}^N
+\text{softmax}_i\!\bigl(\bm{A}_{j,i}\bigr)
+\;\bm{W}_Q^\top\,\bm{W}_K\,\bm{x}_j.
 \]
-measuring how well \(\bm{v}_a\) is explained by (or aligns with) \(\bm{v}_p\). For instances,  Dot-product attention: \(\mathrm{match}(\bm{v}_a,\bm{v}_p) = \bm{v}_a^\top \bm{v}_p\) or Gaussian-mixture: \(\mathrm{match}(\bm{v}_a,\bm{v}_p) 
-= -\tfrac12\bigl(\bm{v}_a - \bm{v}_p\bigr)^\top \bm{\Sigma}^{-1}\bigl(\bm{v}_a - \bm{v}_p\bigr)\) (plus any log prior).
+Hence each slot \(\bm{\mu}_i\) aggregates information from all tokens \(j\), but the weight is proportional to \(\exp(\bm{A}_{j,i})\) normalized across \emph{the slots} \(i\).  This produces the usual iterative update rule:
+\[
+\bm{\mu}_i^*
+\;=\;
+\sum_{j=1}^N
+\text{softmax}_i\!\Bigl(\bm{\mu}_i^\top \bm{W}_Q^\top \bm{W}_K \,\bm{x}_j\Bigr)
+\;\bm{W}_Q^\top \,\bm{W}_K \,\bm{x}_j,
+\]
+which is sometimes referred to as \emph{inverted cross attention}.
 
+\appendix
+\section{Proof of the Gradient Decomposition}
+\label{appendix:proof}
 
-\paragraph{Energy function.}
-Each node \(\bm{v}_a\) has an associated log-sum-exp ``mixture'' term over its parents.  Summing across all nodes yields a single energy:
-\begin{equation}
+For completeness, we provide a short derivation of the gradient expression.  Recall that our energy is
+\[
 E\bigl(\{\bm{v}_a\}\bigr)
 \;=\;
--\sum_{a=1}^A
-\ln \Bigl(\sum_{p \,\in\, \mathcal{P}(a)} 
-\exp\ \bigl(\mathrm{match} (\bm{v}_a,\bm{v}_p)\bigr)\Bigr).
-\label{eq:general-energy}
-\end{equation}
-
-\paragraph{Updates}
-
-The total gradient w.r.t.\ \(\bm{v}_a\) decomposes into two sums, as it both explains and is explained by other nodes.
-\begin{align}
-    -\frac{\partial E}{\partial \bm{v}_a}
-    \;=\;&
-    \underbrace{\sum_{p \in \mathcal{P}(a)} 
-    \text{softmax}_{p}\!\Bigl(\mathrm{match}(\bm{v}_a,\bm{v}_p)\Bigr)
-    \;\frac{\partial}{\partial \bm{v}_a}
-    \mathrm{match}\bigl(\bm{v}_a,\bm{v}_p\bigr)}_{\text{``being explained by parents''}} \nonumber \\
-    &\quad+\;
-    \underbrace{\sum_{c :\, a \in \mathcal{P}(c)} 
-    \text{softmax}_{a}\!\Bigl(\mathrm{match}(\bm{v}_c,\bm{v}_a)\Bigr)
-    \;\frac{\partial}{\partial \bm{v}_a}
-    \mathrm{match}\bigl(\bm{v}_c,\bm{v}_a\bigr)}_{\text{``explaining children''}}.
-    \label{eq:generic-gradient}
-    \end{align}
-Here, 
-\(\text{softmax}_{p}\!\bigl(\mathrm{match}(\bm{v}_a,\bm{v}_p)\bigr) 
-= \frac{\exp(\mathrm{match}(\bm{v}_a,\bm{v}_p))}
-       {\sum_{u \in \mathcal{P}(a)} \exp(\mathrm{match}(\bm{v}_a,\bm{v}_u))}\), 
-and similarly for \(\text{softmax}_{a}(\mathrm{match}(\bm{v}_c,\bm{v}_a))\).
-
-\paragraph{Proof}
-To find the gradient w.r.t.\ a single vector \(\bm{v}_a\), we write
-\begin{equation}
-\begin{aligned}
+-\sum_{c=1}^A
+\ln \Bigl(\sum_{\mathcal{a}\,\in\,\mathcal{P}(c)} 
+\exp\!\bigl(\mathrm{sim}(\bm{v}_c,\bm{v}_{\mathcal{a}})\bigr)\Bigr).
+\]
+Differentiating w.r.t.\ \(\bm{v}_a\):
+\[
 \frac{\partial E}{\partial \bm{v}_a}
-&=
+\;=\;
 -\sum_{c=1}^A
 \frac{\partial}{\partial \bm{v}_a}
-\ln\!\Bigl(\!\sum_{p \in \mathcal{P}(c)} \exp\!\bigl(\mathrm{match}(\bm{v}_c,\bm{v}_p)\bigr)\Bigr) \\[6pt]
-&=
--\sum_{c=1}^A
-\frac{1}{\sum_{p \in \mathcal{P}(c)} \exp(\mathrm{match}(\bm{v}_c,\bm{v}_p))}
-\;\sum_{p \in \mathcal{P}(c)}
-\frac{\partial}{\partial \bm{v}_a}
-\exp\!\bigl(\mathrm{match}(\bm{v}_c,\bm{v}_p)\bigr).
-\end{aligned}
-\end{equation}
-Applying the chain rule inside the sum:
-\begin{equation}
-\frac{\partial}{\partial \bm{v}_a}
-\exp\!\bigl(\mathrm{match}(\bm{v}_c,\bm{v}_p)\bigr)
-=
-\exp\!\bigl(\mathrm{match}(\bm{v}_c,\bm{v}_p)\bigr)\,
-\frac{\partial}{\partial \bm{v}_a}
-\mathrm{match}(\bm{v}_c,\bm{v}_p).
-\end{equation}
-Hence,
-\begin{equation}
-\begin{aligned}
+\ln \Bigl(\sum_{\mathcal{a}\,\in\,\mathcal{P}(c)} 
+\exp\!\bigl(\mathrm{sim}(\bm{v}_c,\bm{v}_{\mathcal{a}})\bigr)\Bigr).
+\]
+Inside the sum, only terms \(\mathrm{sim}(\bm{v}_c,\bm{v}_{\mathcal{a}})\) with \(\mathcal{a}=a\) or \(c=a\) will contribute.  Carefully extracting these leads to the “being explained by parents” plus “explaining children” split in the main text:
+\[
 -\frac{\partial E}{\partial \bm{v}_a}
-&=
-\sum_{c=1}^A
-\sum_{p \in \mathcal{P}(c)}
-\underbrace{
-\frac{\exp(\mathrm{match}(\bm{v}_c,\bm{v}_p))}
-     {\sum_{u \in \mathcal{P}(c)} \exp(\mathrm{match}(\bm{v}_c,\bm{v}_u))}
-}_{\text{softmax}_{p}(\mathrm{match}(\bm{v}_c,\bm{v}_p))}
-\;\frac{\partial}{\partial \bm{v}_a}
-\mathrm{match}(\bm{v}_c,\bm{v}_p).
-\end{aligned}
-\end{equation}
-Noting that
-\(\mathrm{match}(\bm{v}_c,\bm{v}_p)\)
-only depends on \(\bm{v}_a\) if \(c=a\) or \(p=a\), we collect these terms:
-\begin{equation}
-\begin{aligned}
--\frac{\partial E}{\partial \bm{v}_a}
-&=
-\underbrace{
-\sum_{p \in \mathcal{P}(a)}
-\text{softmax}_{p}\!\Bigl(\mathrm{match}(\bm{v}_a,\bm{v}_p)\Bigr)\,
-\frac{\partial}{\partial \bm{v}_a}
-\mathrm{match}(\bm{v}_a,\bm{v}_p)
-}_{\text{``explained by parents''}}
-\\
-&= \underbrace{
-\sum_{\substack{c=1\\a \in \mathcal{P}(c)}}^A
-\text{softmax}_{a}\!\Bigl(\mathrm{match}(\bm{v}_c,\bm{v}_a)\Bigr)\,
-\frac{\partial}{\partial \bm{v}_a}
-\mathrm{match}(\bm{v}_c,\bm{v}_a)
-}_{\text{``explaining children''}}.
-\end{aligned}
-\end{equation}
-This shows how each \(\bm{v}_a\) is pulled by its own parents and also by the children that depend on it.
+\;=\;
+\sum_{\mathcal{a}\,\in\,\mathcal{P}(a)}
+\text{softmax}_{\mathcal{a}}
+\bigl(\mathrm{sim}(\bm{v}_a,\bm{v}_{\mathcal{a}})\bigr)
+\,\frac{\partial\,\mathrm{sim}(\bm{v}_a,\bm{v}_{\mathcal{a}})}{\partial \bm{v}_a}
+\;+\;
+\sum_{\substack{c=1\\ a\in \mathcal{P}(c)}}^A
+\text{softmax}_{a}\bigl(\mathrm{sim}(\bm{v}_c,\bm{v}_a)\bigr)
+\,\frac{\partial\,\mathrm{sim}(\bm{v}_c,\bm{v}_a)}{\partial \bm{v}_a}.
+\]
 
 \end{document}
