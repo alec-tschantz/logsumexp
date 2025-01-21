@@ -46,14 +46,14 @@ For a single node \(\bm{v}_a\), the gradient of the global energy \(E\) w.r.t.\ 
 \;=\;&
 \underbrace{
 \sum_{m \in \mathcal{M}_c(a)} \sum_{p \in P_m}
-\text{softmax}_{p}\!\Bigl(\mathrm{sim}(\bm{v}_a, \bm{v}_p)\Bigr)\,
+\text{softmax}_{p} \Bigl(\mathrm{sim}(\bm{v}_a, \bm{v}_p)\Bigr)\,
 \frac{\partial}{\partial \bm{v}_a}
 \mathrm{sim}\bigl(\bm{v}_a, \bm{v}_p\bigr)
 }_{\text{\(\bm{v}_a\) acting as a child}} \\
 &+
 \underbrace{
 \sum_{m \in \mathcal{M}_p(a)} \sum_{c \in C_m}
-\text{softmax}_{a}\!\Bigl(\mathrm{sim}(\bm{v}_c, \bm{v}_a)\Bigr)\,
+\text{softmax}_{a} \Bigl(\mathrm{sim}(\bm{v}_c, \bm{v}_a)\Bigr)\,
 \frac{\partial}{\partial \bm{v}_a}
 \mathrm{sim}\bigl(\bm{v}_c, \bm{v}_a\bigr)
 }_{\text{\(\bm{v}_a\) acting as a parent}}.
@@ -291,6 +291,47 @@ Since each \(\bm{x}_i\) is \emph{both} a child and a parent, its gradient is a s
     }_{\text{parent $i$ explaining children $c$}}.
     \end{aligned}
     \end{equation}
+
+
+\clearpage
+\appendix
+
+\section{Appendix: Derivation of Gradient Updates}
+
+Let us consider a generic term:
+\[
+-\ln \Bigl(\,\sum_{m=1}^M \exp \bigl(f_m(\bm{x})\bigr)\Bigr),
+\]
+where \(\bm{x}\in \mathbb{R}^d\) is some variable, and each \(f_m\) is a scalar function.
+We compute its gradient:
+\begin{align*}
+\frac{\partial}{\partial \bm{x}}
+\biggl[
+-\ln \Bigl(\,\sum_{m=1}^M \exp \bigl(f_m(\bm{x})\bigr)\Bigr)
+\biggr]
+&=\;
+-\frac{1}{\sum_{m'} \exp \bigl(f_{m'}(\bm{x})\bigr)}
+\;\sum_{m=1}^M
+\exp \bigl(f_m(\bm{x})\bigr)\;\frac{\partial f_m(\bm{x})}{\partial \bm{x}}
+\\[6pt]
+&=\;
+-\sum_{m=1}^M
+\biggl[
+\frac{\exp\!\bigl(f_m(\bm{x})\bigr)}{\sum_{m'} \exp \bigl(f_{m'}(\bm{x})\bigr)}
+\biggr]
+\;\frac{\partial f_m(\bm{x})}{\partial \bm{x}}.
+\end{align*}
+Defining
+\(\mathrm{softmax}_m\bigl(f(\bm{x})\bigr) 
+= 
+\tfrac{\exp(f_m(\bm{x}))}{\sum_{m'} \exp(f_{m'}(\bm{x}))},\)
+this is
+\[
+-\sum_{m=1}^M
+\mathrm{softmax}_m \bigl(f(\bm{x})\bigr)
+\;\frac{\partial f_m(\bm{x})}{\partial \bm{x}},
+\]
+which matches the \(\mathrm{softmax}\)-weighted gradient structure.
 
 
 \end{document}
