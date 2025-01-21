@@ -5,7 +5,7 @@
 
 \begin{document}
 
-\title{Attention via \(\log \sum \exp\) Energy}
+\title{Attention via \(\log \sum \exp\) energy}
 \author{Alexander Tschantz}
 \date{\today}
 \maketitle
@@ -62,7 +62,7 @@ For a single node \(\bm{v}_a\), the gradient of the global energy \(E\) w.r.t.\ 
 The first term captures contributions from \(\bm{v}_a\) being explained by its parents, while the second term captures contributions from \(\bm{v}_a\) explaining its children.
 
 
-\section{Gaussian Mixture Models (GMMs)}
+\section{Gaussian Mixture Models}
 
 \paragraph{Setup.} 
 We have \(N\) data points (children) \(\bm{x}_i \in \mathbb{R}^d\), \(i \in C = \{1,\ldots,N\}\), and \(K\) mixture components (parents), each with mean \(\bm{\mu}_k \in \mathbb{R}^d\) and covariance \(\bm{\Sigma}_k\), \(k \in P = \{1,\ldots,K\}\).  Let \(\pi_k\) be the mixing proportion.
