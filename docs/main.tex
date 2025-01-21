@@ -340,13 +340,23 @@ Since each \(\bm{x}_i\) is \emph{both} a child and a parent, its gradient is a s
     Use this gradient to iteratively update \(\{\bm{\mu}_i\}\) until convergence.
     
     \subsection*{M-step: Update Parameters}
-    With fixed slots \(\{\bm{\mu}_i\}\) and attention matrix \(\mathbf{A}\), solve for parameters by minimizing
+    
+    Given fixed slots \(\{\bm{\mu}_i\}\) and attention matrix \(\mathbf{A}\), we aim to update the parameters \(\bm{W}_K,\bm{W}_Q\). This is motivated by setting the gradient of the energy with respect to these parameters to zero:
+    \[
+    -\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{W}_K} = 0,
+    \qquad
+    -\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{W}_Q} = 0.
+    \]
+    Under the fixed assignments provided by \(\mathbf{A}\) and slots \(\{\bm{\mu}_i\}\), these conditions are equivalent to solving a weighted least-squares problem. Specifically, we consider minimizing the objective
     \[
     \min_{\bm{W}_K,\bm{W}_Q}
     \sum_{j=1}^N\sum_{i=1}^S
     A_{ji}\,
-    \Bigl\|\bm{W}_K\bm{x}_j - \bm{W}_Q\bm{\mu}_i\Bigr\|^2.
+    \Bigl\|\bm{W}_K\bm{x}_j - \bm{W}_Q\bm{\mu}_i\Bigr\|^2,
     \]
+    since the stationary point of this quadratic form corresponds to zero gradients with respect to \(\bm{W}_K,\bm{W}_Q\).
+
+
     \paragraph{Update \(\bm{W}_Q\):}
     Differentiate w.r.t.\ \(\bm{W}_Q\), set to zero:
     \[
@@ -390,6 +400,12 @@ Since each \(\bm{x}_i\) is \emph{both} a child and a parent, its gradient is a s
     
     \paragraph{Iterate:}
     Alternate between the E-step (updating \(\{\bm{\mu}_i\}\)) and the M-step (updating \(\bm{W}_K,\bm{W}_Q\)) until convergence.
+
+
+  
+    
+    
+    
     
 \clearpage
 \appendix
