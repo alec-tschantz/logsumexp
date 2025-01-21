@@ -8,14 +8,12 @@ class Energy(eqx.Module):
 
 
 class Mixture(Energy):
-    logpi: Array
     mu: Array
     prec: Array
 
     def __init__(self, K: int, D: int, key: Array):
-        k1, k2, _ = random.split(key, 3)
-        self.logpi = random.normal(k1, (K,))
-        self.mu = random.normal(k2, (K, D))
+        k1, _ = random.split(key, 2)
+        self.mu = random.normal(12, (K, D))
         self.prec = jnp.ones((D,))
 
     def measure(self, x: Array, mu: Array) -> Array:

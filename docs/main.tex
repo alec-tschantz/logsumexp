@@ -5,83 +5,90 @@
 
 \begin{document}
 
-\title{Attention via \(\log \sum \exp\) energy}
+\title{Attention via \(\log \sum \exp\) Energy}
 \author{Alexander Tschantz}
 \date{\today}
 \maketitle
 
 \section{General Framework}
-We consider a directed graph of \(A\) nodes, where each node is a vector \(\{\bm{v}_a\}_{a=1}^A\) with \(\bm{v}_a \in \mathbb{R}^d\).  Each node \(\bm{v}_a\) has a set of parents \(\mathcal{P}(a) \subseteq \{1,2,\ldots,A\}\).  
 
-We define a generic \emph{similarity} function
-\[
-\mathrm{sim}\bigl(\bm{v}_a,\bm{v}_p\bigr),
-\]
-which measures how well \(\bm{v}_a\) is ``explained by'' or ``aligned with'' its parent \(\bm{v}_p\). This function may have parameters, as in a dot-product model \(\bm{v}_a^\top \bm{v}_p\), or a conditional-probability-based model such as a Gaussian log-likelihood term \(-\tfrac12(\bm{v}_a-\bm{v}_p)^\top \bm{\Sigma}^{-1}(\bm{v}_a-\bm{v}_p)\). 
+\paragraph{Setup.}  
+We consider a single set of nodes \(\bm{v} = \{\bm{v}_a : a \in \{1, 2, \ldots, A\}\}\), where each node \(\bm{v}_a \in \mathbb{R}^d\). The relationships between these nodes are defined by a set of \(M\) energy functions \(\{E_m : m \in \{1, 2, \ldots, M\}\}\). Each energy function \(E_m\) defines a subset of nodes acting as \emph{children} \(C_m \subseteq \{1, 2, \ldots, A\}\) and a subset acting as \emph{parents} \(P_m \subseteq \{1, 2, \ldots, A\}\), which may overlap.
 
-\subsection{Energy Function}
-Each node \(\bm{v}_a\) has a \(\log\sum\exp\)-type term over its parents.  We sum these across all nodes to define the total energy:
-\[
-E\bigl(\{\bm{v}_a\}\bigr)
+\paragraph{Energy.}  
+Each energy function \(E_m\) defines a similarity function:
+\begin{equation}
+\mathrm{sim}\bigl(\bm{v}_c, \bm{v}_p\bigr) \quad:\quad \mathbb{R}^d \times \mathbb{R}^d \to \mathbb{R},
+\end{equation}
+which produces a scalar similarity between a child \(\bm{v}_c\) and a parent \(\bm{v}_p\). Using \( \{ \bm{v}_c \} = \{\bm{v}_c : c \in C_m\}\) and \( \{ \bm{v}_p \} = \{\bm{v}_p : p \in P_m\}\), the energy for \(E_m\) is defined as:
+\begin{equation}
+E_m\bigl(\{ \bm{v}_c \} , \{ \bm{v}_p \} \bigr)
 \;=\;
--\sum_{a=1}^A
-\ln \Bigl(\sum_{p\,\in\,\mathcal{P}(a)}
-\exp \bigl(\mathrm{sim}(\bm{v}_a,\bm{v}_p)\bigr)\Bigr).
-\]
-Informally, each \(\bm{v}_a\) seeks to place high mass on those parents \(\bm{v}_p\) yielding large similarity scores.
+-\sum_{c \in C_m}
+\ln \Bigl(
+\sum_{p \in P_m}
+\exp\bigl(\mathrm{sim}(\bm{v}_c, \bm{v}_p)\bigr)
+\Bigr).
+\end{equation}
+The global energy sums over all energy functions:
+\begin{equation}
+E\bigl(\{ \bm{v} \} \bigr)
+\;=\;
+\sum_{m=1}^M
+E_m\bigl(\{ \bm{v}_c \} , \{ \bm{v}_p \} \bigr).
+\end{equation}
 
-\subsection{Gradient Updates}
-For a single node \(\bm{v}_a\), the gradient of the energy decomposes into two parts, reflecting two ways in which \(\bm{v}_a\) can appear in the summations:
-\[
+\paragraph{Gradient Updates.}  
+For a single node \(\bm{v}_a\), the gradient of the global energy \(E\) w.r.t.\ \(\bm{v}_a\) decomposes into two terms. Let \(\mathcal{M}_c(a) = \{m : a \in C_m\}\) denote the energy functions where \(\bm{v}_a\) acts as a \emph{child}, and \(\mathcal{M}_p(a) = \{m : a \in P_m\}\) the energy functions where \(\bm{v}_a\) acts as a \emph{parent}. Then:
+\begin{equation}
+\begin{aligned}
 -\frac{\partial E}{\partial \bm{v}_a}
-\;=\;
+\;=\;&
 \underbrace{
-\sum_{p \in \mathcal{P}(a)}
-\text{softmax}_{p}\!\Bigl(\mathrm{sim}(\bm{v}_a,\bm{v}_p)\Bigr)\,
+\sum_{m \in \mathcal{M}_c(a)} \sum_{p \in P_m}
+\text{softmax}_{p}\!\Bigl(\mathrm{sim}(\bm{v}_a, \bm{v}_p)\Bigr)\,
 \frac{\partial}{\partial \bm{v}_a}
-\mathrm{sim}\bigl(\bm{v}_a,\bm{v}_p\bigr)
-}_{\text{(``being explained by its parents'')}}
-\;+\;
+\mathrm{sim}\bigl(\bm{v}_a, \bm{v}_p\bigr)
+}_{\text{\(\bm{v}_a\) acting as a child}} \\
+&+
 \underbrace{
-\sum_{c \,\colon\, a \in \mathcal{P}(c)}
-\text{softmax}_{a}\!\Bigl(\mathrm{sim}(\bm{v}_c,\bm{v}_a)\Bigr)\,
+\sum_{m \in \mathcal{M}_p(a)} \sum_{c \in C_m}
+\text{softmax}_{a}\!\Bigl(\mathrm{sim}(\bm{v}_c, \bm{v}_a)\Bigr)\,
 \frac{\partial}{\partial \bm{v}_a}
-\mathrm{sim}\bigl(\bm{v}_c,\bm{v}_a\bigr)
-}_{\text{(``explaining its children'')}}.
-\]
-Above, the summation \(\sum_{p \in \mathcal{P}(a)}\) iterates over the parents of \(a\), while \(\sum_{c : a \in \mathcal{P}(c)}\) iterates over all children \(c\) such that \(a\) is in their parent set.  The \(\text{softmax}\) is taken over the appropriate parent indices in each case.
+\mathrm{sim}\bigl(\bm{v}_c, \bm{v}_a\bigr)
+}_{\text{\(\bm{v}_a\) acting as a parent}}.
+\end{aligned}
+\end{equation}
+The first term captures contributions from \(\bm{v}_a\) being explained by its parents, while the second term captures contributions from \(\bm{v}_a\) explaining its children.
 
-\subsection{Proof of Gradient (Appendix)}
-A full derivation, with explicit sums over \(\mathcal{a} \in \mathcal{P}(c)\), is given in Appendix~\ref{appendix:proof}.  There we show how collecting terms in the derivative leads precisely to the two-term decomposition above.
 
 \section{Gaussian Mixture Models (GMMs)}
-\paragraph{Setup.}
-Let \(\bm{X} = [\bm{x}_1, \ldots, \bm{x}_N]\), where each \(\bm{x}_i \in \mathbb{R}^d\). 
-We consider \(K\) mixture components, each with mean \(\bm{\mu}_k \in \mathbb{R}^d\) and covariance \(\bm{\Sigma}_k\).  Defining \(\pi_k\) as the mixing proportion, a standard GMM log-likelihood term can be written in a form that matches our framework.
 
+\paragraph{Setup.} 
+We have \(N\) data points (children) \(\bm{x}_i \in \mathbb{R}^d\), \(i \in C = \{1,\ldots,N\}\), and \(K\) mixture components (parents), each with mean \(\bm{\mu}_k \in \mathbb{R}^d\) and covariance \(\bm{\Sigma}_k\), \(k \in P = \{1,\ldots,K\}\).  Let \(\pi_k\) be the mixing proportion.
+
+\paragraph{Similarity function.}
+We define
 \[
-\text{In particular, define:}
-\]
-\[
-\begin{aligned}
-\bm{A}_{ik}
-&\;=\;
-\ln \pi_k 
-\;-\;\tfrac{1}{2}\,(\bm{x}_i - \bm{\mu}_k)^\top \bm{\Sigma}_k^{-1}(\bm{x}_i - \bm{\mu}_k)
-\quad\in\;\mathbb{R}^{N\times K}.
-\end{aligned}
+\mathrm{sim}\bigl(\bm{x}_i, \bm{\mu}_k\bigr)
+\;=\;
+\ln \pi_k
+\;-\;
+\tfrac12 \bigl(\bm{x}_i - \bm{\mu}_k\bigr)^\top
+\bm{\Sigma}_k^{-1}
+\bigl(\bm{x}_i - \bm{\mu}_k\bigr).
 \]
 
 \paragraph{Energy.}
-\[
-E^{\mathrm{GMM}}(\bm{X}, \{\bm{\mu}_k\})
+\begin{equation}
+E^{\mathrm{GMM}}\!\Bigl(\{\bm{x}_i\}, \{\bm{\mu}_k\}\Bigr)
 \;=\;
--\sum_{i=1}^N 
-\ln \Bigl(\sum_{k=1}^K 
-\exp\bigl(\bm{A}_{ik}\bigr)\Bigr).
-\]
+-\sum_{i=1}^N
+\ln \Bigl(\sum_{k=1}^K
+\exp\bigl(\mathrm{sim}(\bm{x}_i,\bm{\mu}_k)\bigr)\Bigr).
+\end{equation}
 
-\paragraph{Gradient.}
+\paragraph{Gradients.}
 If we differentiate w.r.t.\ \(\bm{\mu}_k\), then
 \[
 -\frac{\partial E^{\mathrm{GMM}}}{\partial \bm{\mu}_k}
@@ -100,213 +107,190 @@ Setting this gradient to zero yields the usual GMM M-step:
      \text{softmax}_k\!\bigl(\bm{A}_{ik}\bigr)}.
 \]
 
-\section{Self-Attention}
-\paragraph{Setup.}
-Let \(\bm{X} = [\bm{x}_1, \ldots, \bm{x}_N]\), where each \(\bm{x}_i \in \mathbb{R}^d\).  
-We define two learnable weight matrices, \(\bm{W}^Q, \bm{W}^K \in \mathbb{R}^{d \times d}\), and construct
-\[
-\bm{Q} \;=\; \bm{W}^Q\,\bm{X}, 
-\quad
-\bm{K} \;=\; \bm{W}^K\,\bm{X}.
-\]
-Let \(\bm{q}_c\) be the \(c\)-th column of \(\bm{Q}\) and \(\bm{k}_b\) the \(b\)-th column of \(\bm{K}\).  Then we define
-\[
-\text{sim}\bigl(\bm{x}_b, \bm{x}_c\bigr)
-\;\;\widehat{=}\;\;
-\bm{k}_b^\top \bm{q}_c.
-\]
-On a single line, we gather these into the matrix:
-\[
-\begin{aligned}
-\bm{A}_{bc} &= \bm{k}_b^\top \bm{q}_c
-\quad\in\;\mathbb{R}^{N \times N}.
-\end{aligned}
-\]
-
-\paragraph{Energy.}
-\[
-E^{\mathrm{SA}}(\bm{X})
-\;=\;
--\sum_{c=1}^N 
-\ln \Bigl(\sum_{b=1}^N
-\exp\bigl(\bm{A}_{bc}\bigr)\Bigr).
-\]
-
-\paragraph{Gradient.}
-Differentiating w.r.t.\ \(\bm{x}_i\) gives two terms, as each token \(\bm{x}_i\) acts both as a “query” for some other tokens and a “key” for yet others:
-\[
--\frac{\partial E^{\mathrm{SA}}}{\partial \bm{x}_i}
-\;=\;
-\underbrace{
-\sum_{b=1}^N 
-\text{softmax}_b\!\bigl(\bm{A}_{b,i}\bigr)\,
-\bm{W}_Q^\top \bm{W}_K \,\bm{x}_b
-}_{\text{(query side)}}
-\;+\;
-\underbrace{
-\sum_{c=1}^N 
-\text{softmax}_i\!\bigl(\bm{A}_{i,c}\bigr)\,
-\bm{W}_K^\top \bm{W}_Q \,\bm{x}_c
-}_{\text{(key side)}}.
-\]
 
 \section{Cross Attention}
-\paragraph{Setup.}
-In cross attention, we have one set of \emph{query} vectors and a separate set of \emph{key} vectors.  Let
-\(\bm{Q} = \bm{W}^Q\,\bm{X}^Q \in \mathbb{R}^{d \times N_Q}\) 
-and 
-\(\bm{K} = \bm{W}^K\,\bm{X}^K \in \mathbb{R}^{d \times N_K},\)
-where \(\bm{X}^Q\) has \(N_Q\) query tokens and \(\bm{X}^K\) has \(N_K\) key tokens.  
-Denote \(\bm{q}_c\) as the \(c\)-th query column of \(\bm{Q}\) and \(\bm{k}_b\) as the \(b\)-th key column of \(\bm{K}\).  
 
-We define
+\paragraph{Setup.}
+We have a set of child vectors (queries) \(\bm{Q}\in\mathbb{R}^{d\times N_Q}\) and a set of parent vectors (keys) \(\bm{K}\in\mathbb{R}^{d\times N_K}\).  Let
 \[
-\bm{A}_{b,c}
-\;=\;
-\bm{k}_b^\top \,\bm{q}_c
-\quad\in\;\mathbb{R}^{N_K \times N_Q}.
+C \;=\;\{1,\ldots,N_Q\}, 
+\quad
+P \;=\;\{1,\ldots,N_K\},
 \]
-This is a matrix of pairwise similarities between keys and queries.
+so \(\bm{v}_c = \bm{q}_c\) is the \(c\)-th query, and \(\bm{v}_p = \bm{k}_p\) is the \(p\)-th key.  Suppose we have learnable weight matrices \(\bm{W}^Q,\bm{W}^K \in \mathbb{R}^{d \times d}\).  Then
+\[
+\bm{q}_c 
+\;=\;
+\bm{W}^Q\bm{x}^Q_c,
+\quad
+\bm{k}_p 
+\;=\;
+\bm{W}^K\bm{x}^K_p,
+\]
+where \(\bm{x}^Q_c\) is the raw \(c\)-th query token and \(\bm{x}^K_p\) the raw \(p\)-th key token.
+
+\paragraph{Similarity function.}
+\[
+\mathrm{sim}\bigl(\bm{q}_c, \bm{k}_p\bigr)
+\;=\;
+\bm{q}_c^\top \bm{k}_p.
+\]
 
 \paragraph{Energy.}
-\[
-E^{\mathrm{Cross}}(\bm{X}^Q,\bm{X}^K)
+\begin{equation}
+E^{\mathrm{Cross}}\!\Bigl(\{\bm{q}_c\}, \{\bm{k}_p\}\Bigr)
 \;=\;
 -\sum_{c=1}^{N_Q}
-\ln \Bigl(
-\sum_{b=1}^{N_K}
-\exp\bigl(\bm{A}_{b,c}\bigr)
-\Bigr).
-\]
-Minimizing this encourages each query \(\bm{q}_c\) to place large mass on keys \(\bm{k}_b\) that yield higher dot-products.
+\ln \Bigl(\sum_{p=1}^{N_K}
+\exp\bigl(\bm{q}_c^\top\,\bm{k}_p\bigr)\Bigr).
+\end{equation}
 
-\paragraph{Gradient.}
-As in the self-attention derivation, taking the derivative w.r.t.\ a single query or key token yields sums weighted by the appropriate softmax terms.  For example, w.r.t.\ the query-side vector \(\bm{x}^Q_i\),
-\[
--\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{x}^Q_i}
+\paragraph{Gradients.}
+\begin{equation}
+-\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{q}_c}
 \;=\;
-\sum_{b=1}^{N_K}
-\text{softmax}_b\!\bigl(\bm{A}_{b,i}\bigr)\,
-\bm{W}_Q^\top\,\bm{W}_K\,\bm{x}^K_b
-\;+\;\dots 
-\]
-and similarly a key \(\bm{x}^K_j\) appears in the “explaining children” part of the gradient.
+\sum_{p=1}^{N_K}
+\text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
+\bm{k}_p.
+\end{equation}
+\begin{equation}
+-\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{k}_p}
+\;=\;
+\sum_{c=1}^{N_Q}
+\text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
+\bm{q}_c.
+\end{equation}
+When mapping back to the raw tokens \(\bm{x}^Q_c\) or \(\bm{x}^K_p\), chain-rule multiplies by \(\bm{W}^Q\) or \(\bm{W}^K\), respectively.
 
-\section{Hopfield Networks (Softmax Version)}
+\section{Hopfield Networks}
+
 \paragraph{Setup.}
-We have data vectors \(\bm{X} = [\bm{x}_1,\ldots,\bm{x}_N]\), each \(\bm{x}_i \in \mathbb{R}^d\), and memory vectors \(\bm{m}_\mu \in \mathbb{R}^d\) for \(\mu=1,\ldots,K\).  Define 
+We have a set of \emph{children} data vectors \(\bm{x}_i \in \mathbb{R}^d\), \(i\in C=\{1,\ldots,N\}\), and a set of \emph{parent} memory vectors \(\bm{m}_\mu \in \mathbb{R}^d\), \(\mu\in P=\{1,\ldots,K\}\).
+
+\paragraph{Similarity function.}
 \[
-\bm{A}_{i\mu}
+\mathrm{sim}\bigl(\bm{x}_i, \bm{m}_\mu\bigr)
 \;=\;
-\bm{x}_i^\top \,\bm{m}_\mu
-\quad\in\;\mathbb{R}^{N\times K}.
+\bm{x}_i^\top \bm{m}_\mu.
 \]
 
 \paragraph{Energy.}
-\[
-E^{\mathrm{Hopfield}}(\bm{X})
+\begin{equation}
+E^{\mathrm{Hopfield}}\!\Bigl(\{\bm{x}_i\}, \{\bm{m}_\mu\}\Bigr)
 \;=\;
 -\sum_{i=1}^N
 \ln \Bigl(\sum_{\mu=1}^K
-\exp\!\bigl(\bm{A}_{i\mu}\bigr)\Bigr).
-\]
+\exp \bigl(\bm{x}_i^\top \bm{m}_\mu\bigr)\Bigr).
+\end{equation}
 
-\paragraph{Gradient.}
-\[
+\paragraph{Gradients.}
+\begin{equation}
 -\frac{\partial E^{\mathrm{Hopfield}}}{\partial \bm{x}_i}
 \;=\;
 \sum_{\mu=1}^K
-\text{softmax}_\mu\!\bigl(\bm{A}_{i\mu}\bigr)
-\;\bm{m}_\mu.
-\]
-Hence each \(\bm{x}_i\) is updated toward a softmax-weighted combination of the memory vectors.
+\text{softmax}_{\mu}\!\bigl(\bm{x}_i^\top \bm{m}_\mu\bigr)\,
+\bm{m}_\mu.
+\end{equation}
+\begin{equation}
+-\frac{\partial E^{\mathrm{Hopfield}}}{\partial \bm{m}_\mu}
+\;=\;
+\sum_{i=1}^N
+\text{softmax}_{\mu}\!\bigl(\bm{x}_i^\top \bm{m}_\mu\bigr)\,
+\bm{x}_i.
+\end{equation}
 
 \section{Slot Attention}
-Slot Attention can be seen as cross attention in which we normalize across slots (queries) for each token (key), rather than the usual normalization across the token dimension.  
 
 \paragraph{Setup.}
-Let \(\bm{X} = [\bm{x}_1,\ldots,\bm{x}_N]\) be the set of tokens (e.g.\ image patches), where each \(\bm{x}_j \in \mathbb{R}^d\).  We also have a set of \(S\) latent ``slots'': \(\bm{\mu}_i \in \mathbb{R}^d\) for \(i = 1,\ldots,S\).  As in cross attention, we define learnable transforms:
+Let \(\bm{x}_j \in \mathbb{R}^d\), \(j\in C=\{1,\ldots,N\}\) be the children (tokens), and \(\bm{\mu}_i \in \mathbb{R}^d\), \(i \in P=\{1,\ldots,S\}\) be the parents (slots).  
+We typically apply linear transforms \(\bm{W}_K,\bm{W}_Q \in \mathbb{R}^{d \times d}\) to form
 \[
-\bm{W}_K,\;\bm{W}_Q \;\;\in\;\mathbb{R}^{d \times d}.
+\mathrm{sim}\bigl(\bm{x}_j,\bm{\mu}_i\bigr)
+\;=\;
+\bigl(\bm{W}_K\,\bm{x}_j\bigr)^\top
+\bigl(\bm{W}_Q\,\bm{\mu}_i\bigr).
 \]
-The tokens serve as keys (and potentially values), while the slots serve as queries.  However, the key difference is that \emph{each token decides its distribution over slots} (hence the normalization is over \(i\) for each fixed token \(j\)).
 
 \paragraph{Energy.}
-We write the negative log-likelihood as a sum over tokens \(j=1,\dots,N\), and in each term we do a \(\log \sum \exp\) over the slots \(i=1,\ldots,S\).  Concretely,
-\[
-E^{\mathrm{Slot}}\bigl(\{\bm{\mu}_i\}\bigr)
+\begin{equation}
+E^{\mathrm{Slot}}\!\Bigl(\{\bm{x}_j\}, \{\bm{\mu}_i\}\Bigr)
 \;=\;
 -\sum_{j=1}^N
 \ln \Bigl(\sum_{i=1}^S
-\exp\!\bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\bigr)\Bigr),
-\]
-where 
-\(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)
-=\bigl(\bm{W}_K\,\bm{x}_j\bigr)^\top \bigl(\bm{W}_Q\,\bm{\mu}_i\bigr).\)
+\exp \bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\bigr)\Bigr).
+\end{equation}
 
-
-\[
-\begin{aligned}
-\bm{A}_{j,i}
-&=
-\bigl(\bm{W}_K\,\bm{x}_j\bigr)^\top 
-\bigl(\bm{W}_Q\,\bm{\mu}_i\bigr)
-\quad\in\;\mathbb{R}^{N\times S}.
-\end{aligned}
-\]
-
-\paragraph{Gradient.}
-Taking the derivative w.r.t.\ a single slot \(\bm{\mu}_i\) yields
-\[
+\paragraph{Gradients.}
+\begin{equation}
+-\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{x}_j}
+\;=\;
+\sum_{i=1}^S
+\text{softmax}_{i}\!\Bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\Bigr)\,
+\bm{W}_K^\top \bm{W}_Q\,\bm{\mu}_i.
+\end{equation}
+\begin{equation}
 -\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{\mu}_i}
 \;=\;
 \sum_{j=1}^N
-\text{softmax}_i\!\bigl(\bm{A}_{j,i}\bigr)
-\;\bm{W}_Q^\top\,\bm{W}_K\,\bm{x}_j.
-\]
-Hence each slot \(\bm{\mu}_i\) aggregates information from all tokens \(j\), but the weight is proportional to \(\exp(\bm{A}_{j,i})\) normalized across \emph{the slots} \(i\).  This produces the usual iterative update rule:
-\[
-\bm{\mu}_i^*
-\;=\;
-\sum_{j=1}^N
-\text{softmax}_i\!\Bigl(\bm{\mu}_i^\top \bm{W}_Q^\top \bm{W}_K \,\bm{x}_j\Bigr)
-\;\bm{W}_Q^\top \,\bm{W}_K \,\bm{x}_j,
-\]
-which is sometimes referred to as \emph{inverted cross attention}.
+\text{softmax}_{i}\!\Bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\Bigr)\,
+\bm{W}_Q^\top \bm{W}_K\,\bm{x}_j.
+\end{equation}
 
-\appendix
-\section{Proof of the Gradient Decomposition}
-\label{appendix:proof}
+\section{Self-Attention}
 
-For completeness, we provide a short derivation of the gradient expression.  Recall that our energy is
+\paragraph{Setup.}
+In self-attention, every node can act as both a child (query) and a parent (key). Concretely, let us have \(N\) tokens \(\{\bm{x}_1,\dots,\bm{x}_N\}\).  We form
 \[
-E\bigl(\{\bm{v}_a\}\bigr)
-\;=\;
--\sum_{c=1}^A
-\ln \Bigl(\sum_{\mathcal{a}\,\in\,\mathcal{P}(c)} 
-\exp\!\bigl(\mathrm{sim}(\bm{v}_c,\bm{v}_{\mathcal{a}})\bigr)\Bigr).
+\bm{q}_i \;=\; \bm{W}^Q\,\bm{x}_i,
+\quad
+\bm{k}_i \;=\; \bm{W}^K\,\bm{x}_i,
 \]
-Differentiating w.r.t.\ \(\bm{v}_a\):
+for \(i = 1,\ldots,N\).  
+Thus the set \(C = \{1,\ldots,N\}\) and \(P = \{1,\ldots,N\}\) coincide, with
 \[
-\frac{\partial E}{\partial \bm{v}_a}
+\mathrm{sim}\bigl(\bm{x}_c,\bm{x}_p\bigr)
 \;=\;
--\sum_{c=1}^A
-\frac{\partial}{\partial \bm{v}_a}
-\ln \Bigl(\sum_{\mathcal{a}\,\in\,\mathcal{P}(c)} 
-\exp\!\bigl(\mathrm{sim}(\bm{v}_c,\bm{v}_{\mathcal{a}})\bigr)\Bigr).
+\bigl(\bm{W}^Q \bm{x}_c\bigr)^\top
+\bigl(\bm{W}^K \bm{x}_p\bigr).
 \]
-Inside the sum, only terms \(\mathrm{sim}(\bm{v}_c,\bm{v}_{\mathcal{a}})\) with \(\mathcal{a}=a\) or \(c=a\) will contribute.  Carefully extracting these leads to the “being explained by parents” plus “explaining children” split in the main text:
-\[
--\frac{\partial E}{\partial \bm{v}_a}
+
+\paragraph{Energy.}
+\begin{equation}
+E^{\mathrm{SA}}\!\Bigl(\{\bm{x}_i\}\Bigr)
 \;=\;
-\sum_{\mathcal{a}\,\in\,\mathcal{P}(a)}
-\text{softmax}_{\mathcal{a}}
-\bigl(\mathrm{sim}(\bm{v}_a,\bm{v}_{\mathcal{a}})\bigr)
-\,\frac{\partial\,\mathrm{sim}(\bm{v}_a,\bm{v}_{\mathcal{a}})}{\partial \bm{v}_a}
-\;+\;
-\sum_{\substack{c=1\\ a\in \mathcal{P}(c)}}^A
-\text{softmax}_{a}\bigl(\mathrm{sim}(\bm{v}_c,\bm{v}_a)\bigr)
-\,\frac{\partial\,\mathrm{sim}(\bm{v}_c,\bm{v}_a)}{\partial \bm{v}_a}.
-\]
+-\sum_{c=1}^N
+\ln \Bigl(\sum_{p=1}^N
+\exp \Bigl(
+(\bm{W}^Q \bm{x}_c)^\top
+(\bm{W}^K \bm{x}_p)
+\Bigr)\Bigr).
+\end{equation}
+
+\paragraph{Gradients.}
+Since each \(\bm{x}_i\) is \emph{both} a child and a parent, its gradient is a sum of two terms (the child side and the parent side).  Writing it out explicitly:
+\begin{equation}
+    \begin{aligned}
+    -\frac{\partial E^{\mathrm{SA}}}{\partial \bm{x}_i}
+    \;=\;&
+    \underbrace{
+    \sum_{p=1}^N
+    \text{softmax}_{p}\!\Bigl(
+    (\bm{W}^Q \bm{x}_i)^\top
+    (\bm{W}^K \bm{x}_p)
+    \Bigr)\,
+    \bm{W}_Q^\top \bm{W}_K \,\bm{x}_p
+    }_{\text{child $i$ being explained by parents $p$}} \\
+    &+
+    \underbrace{
+    \sum_{c=1}^N
+    \text{softmax}_{i}\!\Bigl(
+    (\bm{W}^Q \bm{x}_c)^\top
+    (\bm{W}^K \bm{x}_i)
+    \Bigr)\,
+    \bm{W}_K^\top \bm{W}_Q \,\bm{x}_c
+    }_{\text{parent $i$ explaining children $c$}}.
+    \end{aligned}
+    \end{equation}
+
 
 \end{document}
