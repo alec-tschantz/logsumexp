@@ -292,7 +292,105 @@ Since each \(\bm{x}_i\) is \emph{both} a child and a parent, its gradient is a s
     \end{aligned}
     \end{equation}
 
-
+    \section{Coordinate ascent}
+    \label{sec:generic-slot-attention-em}
+    
+    Consider an energy of the form
+    \[
+    E(\{\bm{x}_j\}, \{\bm{\mu}_i\}; \theta)
+    \;=\;
+    -\sum_{j=1}^N
+    \ln\Bigl(\sum_{i=1}^S
+    \exp\bigl(\mathrm{sim}_\theta(\bm{x}_j,\bm{\mu}_i)\bigr)\Bigr),
+    \]
+    with \(\theta\) denoting the parameters of the similarity function. In an EM procedure, we alternate:
+    \begin{itemize}
+        \item \textbf{E-step}: Update latent variables using fixed \(\theta\).
+        \item \textbf{M-step}: Update parameters \(\theta\) in closed form given fixed latent assignments.
+    \end{itemize}
+    
+    For \emph{slot attention}, we have:
+    \[
+    \theta = \{\bm{W}_K,\bm{W}_Q\},
+    \] 
+    \[
+    \mathrm{sim}_\theta(\bm{x}_j,\bm{\mu}_i)
+    \;=\;
+    (\bm{W}_K\bm{x}_j)^\top(\bm{W}_Q\bm{\mu}_i).
+    \]
+    \[
+    \mathbf{A} 
+    \quad\text{with entries}\quad 
+    A_{ji}
+    \;=\;
+    \mathrm{softmax}_i\Bigl(
+    (\bm{W}_K\bm{x}_j)^\top(\bm{W}_Q\bm{\mu}_i)
+    \Bigr).
+    \]
+    
+    \subsection*{E-step: Update Slots}
+    Fix \(\bm{W}_K,\bm{W}_Q\). The gradient for each slot \(\bm{\mu}_i\) is
+    \[
+    -\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{\mu}_i}
+    =
+    \sum_{j=1}^N
+    A_{ji}\,
+    \bm{W}_Q^\top\bm{W}_K\bm{x}_j.
+    \]
+    Use this gradient to iteratively update \(\{\bm{\mu}_i\}\) until convergence.
+    
+    \subsection*{M-step: Update Parameters}
+    With fixed slots \(\{\bm{\mu}_i\}\) and attention matrix \(\mathbf{A}\), solve for parameters by minimizing
+    \[
+    \min_{\bm{W}_K,\bm{W}_Q}
+    \sum_{j=1}^N\sum_{i=1}^S
+    A_{ji}\,
+    \Bigl\|\bm{W}_K\bm{x}_j - \bm{W}_Q\bm{\mu}_i\Bigr\|^2.
+    \]
+    \paragraph{Update \(\bm{W}_Q\):}
+    Differentiate w.r.t.\ \(\bm{W}_Q\), set to zero:
+    \[
+    \sum_{j,i}A_{ji}\,
+    \Bigl(\bm{W}_K\bm{x}_j - \bm{W}_Q\bm{\mu}_i\Bigr)
+    \bm{\mu}_i^\top
+    \;=\;0,
+    \]
+    yielding
+    \[
+    \bm{W}_Q
+    \;=\;
+    \Biggl(
+    \sum_{j,i}A_{ji}\,
+    \bm{W}_K\bm{x}_j\,\bm{\mu}_i^\top
+    \Biggr)
+    \Biggl(\sum_{j,i}A_{ji}\,
+    \bm{\mu}_i\bm{\mu}_i^\top
+    \Biggr)^{-1}.
+    \]
+    \paragraph{Update \(\bm{W}_K\):}
+    Similarly, differentiate w.r.t.\ \(\bm{W}_K\), set to zero:
+    \[
+    \sum_{j,i}A_{ji}\,
+    \Bigl(\bm{W}_K\bm{x}_j - \bm{W}_Q\bm{\mu}_i\Bigr)
+    \bm{x}_j^\top
+    \;=\;0,
+    \]
+    yielding
+    \[
+    \bm{W}_K
+    \;=\;
+    \Biggl(
+    \sum_{j,i}A_{ji}\,
+    \bm{W}_Q\bm{\mu}_i\,\bm{x}_j^\top
+    \Biggr)
+    \Biggl(\sum_{j,i}A_{ji}\,
+    \bm{x}_j\bm{x}_j^\top
+    \Biggr)^{-1}.
+    \]
+    
+    \paragraph{Iterate:}
+    Alternate between the E-step (updating \(\{\bm{\mu}_i\}\)) and the M-step (updating \(\bm{W}_K,\bm{W}_Q\)) until convergence.
+    
 \clearpage
 \appendix
 
