@@ -292,6 +292,137 @@ Since each \(\bm{x}_i\) is \emph{both} a child and a parent, its gradient is a s
     \end{aligned}
     \end{equation}
 
+    \section{Switching Linear Dynamical System}
+
+\paragraph{Setup.}
+Consider a time series of observations \(\{\bm{x}_t\}_{t=1}^T\), where each \(\bm{x}_t \in \mathbb{R}^d\).  
+We assume there are \(K\) distinct (linear) dynamical modes, each with parameters \(\{\bm{A}_k, \bm{b}_k, \bm{\Sigma}_k\}\). Let \(\pi_k\) be the mixing weight of mode \(k\).  A typical \emph{switching linear dynamical system} (SLDS) posits:
+\[
+\bm{x}_{t+1}
+\;\approx\;
+\bm{A}_k\,\bm{x}_t \;+\; \bm{b}_k,
+\quad
+k \in \{1,\dots,K\},
+\]
+with Gaussian noise \(\bm{\Sigma}_k\).  
+We treat \(\bm{x}_{t+1}\) as a \emph{child} and the \(\{\bm{A}_k, \bm{b}_k\}\) (together with \(\bm{x}_t\)) as \emph{parents} in a mixture-of-linear-dynamics fashion.
+
+\paragraph{Similarity function.}
+Define, for each mode \(k\),
+\[
+\mathrm{sim}\bigl(\bm{x}_{t+1}, \bm{x}_t; \bm{A}_k, \bm{b}_k\bigr)
+\;=\;
+\ln \pi_k
+\;-\;
+\tfrac12\,\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr)^\top
+\bm{\Sigma}_k^{-1}
+\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr).
+\]
+
+\paragraph{Energy.}
+Summing over all time steps \(t = 1,\ldots,T-1\), we write
+\begin{equation}
+E^{\mathrm{SLDS}}\!\Bigl(\{\bm{x}_t\}, \{\bm{A}_k, \bm{b}_k\}\Bigr)
+\;=\;
+-\sum_{t=1}^{T-1}\,
+\ln \Bigl(\sum_{k=1}^K
+\exp\!\Bigl(
+\mathrm{sim}\bigl(\bm{x}_{t+1}, \bm{x}_t; \bm{A}_k, \bm{b}_k\bigr)
+\Bigr)\Bigr).
+\end{equation}
+
+\paragraph{Gradients.}
+Let 
+\[
+\alpha_{t,k} 
+\;=\;
+\mathrm{softmax}_{k}\Bigl(
+\mathrm{sim}\bigl(\bm{x}_{t+1}, \bm{x}_t; \bm{A}_k, \bm{b}_k\bigr)\Bigr),
+\]
+i.e.\ the normalized exponent for mode \(k\).  
+
+\[
+-\frac{\partial E^{\mathrm{SLDS}}}{\partial \bm{x}_{t+1}}
+\;=\;
+\sum_{k=1}^K 
+\alpha_{t,k}\,\bm{\Sigma}_k^{-1}
+\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr).
+\]
+\[
+-\frac{\partial E^{\mathrm{SLDS}}}{\partial \bm{x}_t}
+\;=\;
+\sum_{k=1}^K 
+\alpha_{t,k}\,
+\bigl(-\,\bm{A}_k^\top\,\bm{\Sigma}_k^{-1}\bigr)\,
+\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr)
+\quad (t=1,\dots,T-1).
+\]
+\[
+-\frac{\partial E^{\mathrm{SLDS}}}{\partial \bm{A}_k}
+\;=\;
+\sum_{t=1}^{T-1}
+\alpha_{t,k}\,\bm{\Sigma}_k^{-1}
+\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr)\,\bm{x}_t^\top.
+\]
+\[
+-\frac{\partial E^{\mathrm{SLDS}}}{\partial \bm{b}_k}
+\;=\;
+\sum_{t=1}^{T-1}
+\alpha_{t,k}\,\bm{\Sigma}_k^{-1}
+\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr).
+\]
+
+\section{Predictive coding}
+
+\paragraph{Setup.}
+We again have child vectors \(\{\bm{x}_i\}_{i=1}^N\) and a set of parent \(\bm{\mu}_k \in \mathbb{R}^d, k=1,\dots,K\).  However, rather than a direct difference \(\bm{x}_i-\bm{\mu}_k\), let us assume the \emph{model} maps \(\bm{\mu}_k\) through some non-linear function \(f_\phi(\cdot)\) before comparing to \(\bm{x}_i\).  For instance, \(f_\phi\) could be a neural network.
+
+\paragraph{Similarity function.}
+Define
+\[
+\mathrm{sim}\bigl(\bm{x}_i,\bm{\mu}_k\bigr)
+\;=\;
+-\,\tfrac12\,
+\bigl\|\bm{x}_i \;-\; f_\phi(\bm{\mu}_k)\bigr\|^2.
+\]
+
+\paragraph{Energy.}
+\begin{equation}
+E^{\mathrm{PC}}\!\Bigl(\{\bm{x}_i\}, \{\bm{\mu}_k\}\Bigr)
+\;=\;
+-\sum_{i=1}^N
+\ln \Bigl(\sum_{k=1}^K
+\exp\Bigl(-\tfrac12\,\bigl\|\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr\|^2\Bigr)\Bigr).
+\end{equation}
+
+\paragraph{Gradients.}
+\[
+\alpha_{i,k}
+\;=\;
+\mathrm{softmax}_k\Bigl(
+-\,\tfrac12\,\bigl\|\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr\|^2
+\Bigr).
+\]
+
+\[
+-\frac{\partial E^{\mathrm{PC}}}{\partial \bm{x}_i}
+\;=\;
+\sum_{k=1}^K 
+\alpha_{i,k}\,\bigl(\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr).
+\]
+\[
+-\frac{\partial E^{\mathrm{PC}}}{\partial \bm{\mu}_k}
+\;=\;
+\sum_{i=1}^N 
+\alpha_{i,k}\,
+\underbrace{
+\frac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}
+}_{\text{Jacobian of }f_\phi}
+\;\bigl(\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr).
+\]
+Here, \(\tfrac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}\) is the \(d\times d\) Jacobian (or more general shape if \(\bm{\mu}_k\) and \(f_\phi(\bm{\mu}_k)\) differ in dimension).  The gradient backpropagates through \(f_\phi\).
+
+
     \section{Coordinate ascent}
     \label{sec:generic-slot-attention-em}
     
