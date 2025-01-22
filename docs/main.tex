@@ -1,3 +1,6 @@
+
+
+
 \documentclass{article}
 \usepackage{amsmath,amssymb,bm}
 \usepackage{geometry}
@@ -536,8 +539,6 @@ Here, \(\tfrac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}\) is the \(d\ti
   
     
     
-    
-    
 \clearpage
 \appendix
 
@@ -577,6 +578,144 @@ this is
 \;\frac{\partial f_m(\bm{x})}{\partial \bm{x}},
 \]
 which matches the \(\mathrm{softmax}\)-weighted gradient structure.
+
+
+\section{Appendix}
+\label{sec:deriv-sim-models}
+
+Here, we collect the explicit partial derivatives of \(\mathrm{sim}\) for each model discussed.
+
+\subsection*{Gaussian Mixture Models}
+\[
+\mathrm{sim}\bigl(\bm{x}_i, \bm{\mu}_k\bigr)
+\;=\;
+\ln \pi_k
+\;-\;
+\tfrac12 \bigl(\bm{x}_i - \bm{\mu}_k\bigr)^\top
+\bm{\Sigma}_k^{-1}
+\bigl(\bm{x}_i - \bm{\mu}_k\bigr).
+\]
+\[
+\frac{\partial}{\partial \bm{\mu}_k} \mathrm{sim}(\bm{x}_i,\bm{\mu}_k)
+\;=\;
+\bm{\Sigma}_k^{-1}\,\bigl(\bm{x}_i - \bm{\mu}_k\bigr).
+\]
+
+\subsection*{Cross Attention}
+\[
+\mathrm{sim}\bigl(\bm{q}_c, \bm{k}_p\bigr)
+\;=\;
+\bm{q}_c^\top \bm{k}_p.
+\]
+\[
+\frac{\partial}{\partial \bm{q}_c} \mathrm{sim}(\bm{q}_c,\bm{k}_p)
+\;=\;
+\bm{k}_p,
+\quad
+\frac{\partial}{\partial \bm{k}_p} \mathrm{sim}(\bm{q}_c,\bm{k}_p)
+\;=\;
+\bm{q}_c.
+\]
+
+\subsection*{Hopfield Networks}
+\[
+\mathrm{sim}\bigl(\bm{x}_i, \bm{m}_\mu\bigr)
+\;=\;
+\bm{x}_i^\top \bm{m}_\mu.
+\]
+\[
+\frac{\partial}{\partial \bm{x}_i} \mathrm{sim}(\bm{x}_i,\bm{m}_\mu)
+\;=\;
+\bm{m}_\mu,
+\quad
+\frac{\partial}{\partial \bm{m}_\mu} \mathrm{sim}(\bm{x}_i,\bm{m}_\mu)
+\;=\;
+\bm{x}_i.
+\]
+
+\subsection*{Slot Attention}
+\[
+\mathrm{sim}\bigl(\bm{x}_j,\bm{\mu}_i\bigr)
+\;=\;
+(\bm{W}_K\,\bm{x}_j)^\top
+(\bm{W}_Q\,\bm{\mu}_i).
+\]
+
+\[
+\frac{\partial}{\partial \bm{x}_j} \mathrm{sim}(\bm{x}_j,\bm{\mu}_i)
+\;=\;
+\bm{W}_K^\top \,\bm{W}_Q\,\bm{\mu}_i,
+\quad
+\frac{\partial}{\partial \bm{\mu}_i} \mathrm{sim}(\bm{x}_j,\bm{\mu}_i)
+\;=\;
+\bm{W}_Q^\top \,\bm{W}_K\,\bm{x}_j.
+\]
+
+\subsection*{Self-Attention}
+\[
+\mathrm{sim}\bigl(\bm{x}_c,\bm{x}_p\bigr)
+\;=\;
+(\bm{W}^Q \bm{x}_c)^\top\,(\bm{W}^K \bm{x}_p).
+\]
+\[
+\frac{\partial}{\partial \bm{x}_c} \mathrm{sim}(\bm{x}_c,\bm{x}_p)
+\;=\;
+{\bm{W}^Q}^\top\,\bm{W}^K\,\bm{x}_p,
+\quad
+\frac{\partial}{\partial \bm{x}_p} \mathrm{sim}(\bm{x}_c,\bm{x}_p)
+\;=\;
+{\bm{W}^K}^\top\,\bm{W}^Q\,\bm{x}_c.
+\]
+
+\subsection*{Switching Linear Dynamical System}
+\[
+\mathrm{sim}\bigl(\bm{x}_{t+1}, \bm{x}_t; \bm{A}_k, \bm{b}_k\bigr)
+\;=\;
+\ln \pi_k
+\;-\;
+\tfrac12\,\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr)^\top
+\bm{\Sigma}_k^{-1}
+\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr).
+\]
+\[
+\frac{\partial}{\partial \bm{x}_{t+1}}\mathrm{sim}(\bm{x}_{t+1},\bm{x}_t;\bm{A}_k,\bm{b}_k)
+\;=\;
+\bm{\Sigma}_k^{-1}\,\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr),
+\]
+\[
+\frac{\partial}{\partial \bm{x}_t}\mathrm{sim}(\bm{x}_{t+1},\bm{x}_t;\bm{A}_k,\bm{b}_k)
+\;=\;
+-\,\bm{A}_k^\top \,\bm{\Sigma}_k^{-1}\,\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr),
+\]
+\[
+\frac{\partial}{\partial \bm{A}_k}\mathrm{sim}(\bm{x}_{t+1},\bm{x}_t;\bm{A}_k,\bm{b}_k)
+\;=\;
+\bm{\Sigma}_k^{-1}\,\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr)\,\bm{x}_t^\top,
+\]
+\[
+\frac{\partial}{\partial \bm{b}_k}\mathrm{sim}(\bm{x}_{t+1},\bm{x}_t;\bm{A}_k,\bm{b}_k)
+\;=\;
+\bm{\Sigma}_k^{-1}\,\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr).
+\]
+
+\subsection*{Predictive Coding}
+\[
+\mathrm{sim}\bigl(\bm{x}_i,\bm{\mu}_k\bigr)
+\;=\;
+-\,\tfrac12\,
+\bigl\|\bm{x}_i \;-\; f_\phi(\bm{\mu}_k)\bigr\|^2.
+\]
+\[
+\frac{\partial}{\partial \bm{x}_i}\,\mathrm{sim}(\bm{x}_i,\bm{\mu}_k)
+\;=\;
+\bm{x}_i - f_\phi(\bm{\mu}_k),
+\]
+\[
+\frac{\partial}{\partial \bm{\mu}_k}\,\mathrm{sim}(\bm{x}_i,\bm{\mu}_k)
+\;=\;
+\frac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}
+\;\bigl(\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr).
+\]
 
 
 \end{document}
