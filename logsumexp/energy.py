@@ -17,7 +17,7 @@ class CrossAttention(Energy):
     Wk: Array
     Wq: Array
 
-    def __init__(self, D: int, key: Array):
+    def __init__(self, D: int, key: jr.PRNGKey):
         k1, k2 = jr.split(key, 2)
         self.Wk = jr.normal(k1, (D, D))
         self.Wq = jr.normal(k2, (D, D))
@@ -37,7 +37,7 @@ class SlotAttention(Energy):
     Wk: Array
     Wq: Array
 
-    def __init__(self, D: int, key: Array):
+    def __init__(self, D: int, key: jr.PRNGKey):
         k1, k2 = jr.split(key, 2)
         self.Wk = jr.normal(k1, (D, D))
         self.Wq = jr.normal(k2, (D, D))
@@ -52,7 +52,7 @@ class SelfAttention(Energy):
     Wk: Array
     Wq: Array
 
-    def __init__(self, D: int, key: Array) -> None:
+    def __init__(self, D: int, key: jr.PRNGKey) -> None:
         k1, k2 = jr.split(key, 2)
         self.Wk = jr.normal(k1, (D, D))
         self.Wq = jr.normal(k2, (D, D))
@@ -83,13 +83,32 @@ class PredictiveCoding(Energy):
     b: Array
     func: Callable
 
-    def __init__(self, D: int, func: Callable, key: Array) -> None:
+    def __init__(self, D_in: int, D_out: int, func: Callable, key: jr.PRNGKey) -> None:
         k1, k2 = jr.split(key, 2)
-        self.W = jr.normal(k1, (D, D))
-        self.b = jr.normal(k2, (D,))
+        self.W = jr.normal(k1, (D_out, D_in))
+        self.b = jr.normal(k2, (D_out,))
         self.func = func
 
     def measure(self, x: Array, mu: Array) -> Array:
         f_mu = self.func(mu @ self.W.T + self.b)
         diffs = x[:, None, :] - f_mu[None, :, :]
         return -0.5 * jnp.sum(diffs**2, axis=-1)
+
+
+class LayerNorm(eqx.Module):
+    gamma: Array
+    delta: Array
+    epsilon: float
+
+    def __init__(self, D: int, epsilon: float = 1e-5, key=None) -> None:
+        self.gamma = jnp.ones((D,))
+        self.delta = jnp.zeros((D,))
+        self.epsilon = epsilon
+
+    def __call__(self, x: Array) -> float:
+        mean = jnp.mean(x, axis=-1, keepdims=True)
+        var = jnp.mean((x - mean) ** 2, axis=-1, keepdims=True)
+        norm = jnp.sqrt(var + self.epsilon)
+
+        L = self.gamma * norm + jnp.sum(self.delta * x, axis=-1, keepdims=True)
+        return jnp.sum(L)

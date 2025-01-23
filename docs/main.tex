@@ -344,7 +344,8 @@ E^{\mathrm{PC}}\!\Bigl(\{\bm{x}_i\}, \{\bm{\mu}_k\}\Bigr)
 }_{\text{Jacobian of }f_\phi}
 \;\bigl(\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr).
 \]
-Here, \(\tfrac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}\) is the \(d\times d\) Jacobian (or more general shape if \(\bm{\mu}_k\) and \(f_\phi(\bm{\mu}_k)\) differ in dimension).  The gradient backpropagates through \(f_\phi\).
+Here, \(\tfrac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}\) is the \(d\times d\) Jacobian (or more general shape if \(\bm{\mu}_k\) and \(f_\phi(\bm{\mu}_k)\) differ in dimension). 
+
 
 \section{Switching Linear Dynamical System}
 
@@ -426,6 +427,29 @@ i.e.\ the normalized exponent for mode \(k\).
 \bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr).
 \]
 
+\section{Layer Normalization}
+
+\paragraph{Setup.}
+We consider a batch of input vectors \(\{\bm{x}_i\}_{i=1}^B\), where each vector \(\bm{x}_i \in \mathbb{R}^D\). Each vector is normalized by subtracting the mean and dividing by the standard deviation, with learnable scaling and bias parameters \(\gamma, \delta \in \mathbb{R}^D\). For numerical stability, a small constant \(\epsilon > 0\) is added to the variance.
+
+\paragraph{Energy.}
+The energy for layer normalization is given by:
+\[
+E^{\mathrm{LN}}(\{\bm{x}_i\}) = \sum_{i=1}^B \left[ \gamma \sqrt{\frac{1}{D} \sum_{j=1}^D (x_{ij} - \bar{\bm{x}}_i)^2 + \epsilon} + \sum_{j=1}^D \delta_j x_{ij} \right],
+\]
+where:
+\[
+\bar{\bm{x}}_i = \frac{1}{D} \sum_{j=1}^D x_{ij}.
+\]
+
+\paragraph{Derivative.}
+The normalized outputs are obtained as the derivative of the energy with respect to the inputs:
+\[
+\frac{\partial E^{\mathrm{LN}}}{\partial x_{ij}} = \gamma_j \frac{x_{ij} - \bar{\bm{x}}_i}{\sqrt{\frac{1}{D} \sum_{k=1}^D (x_{ik} - \bar{\bm{x}}_i)^2 + \epsilon}} + \delta_j.
+\]
+\[
+\bar{\bm{x}}_i = \frac{1}{D} \sum_{k=1}^D x_{ik}.
+\]
 
 \section{Coordinate ascent}
 \label{sec:generic-slot-attention-em}
