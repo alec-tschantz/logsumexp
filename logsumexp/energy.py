@@ -1,7 +1,7 @@
-from typing import Any, Callable
+from typing import Any, Callable, List, Tuple, Dict
 
 import equinox as eqx
-from jax import Array, nn, numpy as jnp, random as jr
+from jax import Array, nn, numpy as jnp, random as jr, jit
 
 
 class Energy(eqx.Module):
@@ -11,6 +11,15 @@ class Energy(eqx.Module):
     def __call__(self, *args: Any) -> float:
         m = self.measure(*args)
         return -jnp.sum(nn.logsumexp(m, axis=1))
+
+
+@eqx.filter_jit
+def energy(edges, nodes) -> float:
+    total = 0.0
+    for energy_fn, names in edges:
+        args = [nodes[name] for name in names]
+        total = total + energy_fn(*args)
+    return total
 
 
 class CrossAttention(Energy):
