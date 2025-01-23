@@ -295,7 +295,58 @@ Since each \(\bm{x}_i\) is \emph{both} a child and a parent, its gradient is a s
     \end{aligned}
     \end{equation}
 
-    \section{Switching Linear Dynamical System}
+
+\section{Predictive coding}
+
+\paragraph{Setup.}
+We again have child vectors \(\{\bm{x}_i\}_{i=1}^N\) and a set of parent \(\bm{\mu}_k \in \mathbb{R}^d, k=1,\dots,K\).  However, rather than a direct difference \(\bm{x}_i-\bm{\mu}_k\), let us assume the \emph{model} maps \(\bm{\mu}_k\) through some non-linear function \(f_\phi(\cdot)\) before comparing to \(\bm{x}_i\).  For instance, \(f_\phi\) could be a neural network.
+
+\paragraph{Similarity function.}
+Define
+\[
+\mathrm{sim}\bigl(\bm{x}_i,\bm{\mu}_k\bigr)
+\;=\;
+-\,\tfrac12\,
+\bigl\|\bm{x}_i \;-\; f_\phi(\bm{\mu}_k)\bigr\|^2.
+\]
+
+\paragraph{Energy.}
+\begin{equation}
+E^{\mathrm{PC}}\!\Bigl(\{\bm{x}_i\}, \{\bm{\mu}_k\}\Bigr)
+\;=\;
+-\sum_{i=1}^N
+\ln \Bigl(\sum_{k=1}^K
+\exp\Bigl(-\tfrac12\,\bigl\|\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr\|^2\Bigr)\Bigr).
+\end{equation}
+
+\paragraph{Gradients.}
+\[
+\alpha_{i,k}
+\;=\;
+\mathrm{softmax}_k\Bigl(
+-\,\tfrac12\,\bigl\|\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr\|^2
+\Bigr).
+\]
+
+\[
+-\frac{\partial E^{\mathrm{PC}}}{\partial \bm{x}_i}
+\;=\;
+\sum_{k=1}^K 
+\alpha_{i,k}\,\bigl(\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr).
+\]
+\[
+-\frac{\partial E^{\mathrm{PC}}}{\partial \bm{\mu}_k}
+\;=\;
+\sum_{i=1}^N 
+\alpha_{i,k}\,
+\underbrace{
+\frac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}
+}_{\text{Jacobian of }f_\phi}
+\;\bigl(\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr).
+\]
+Here, \(\tfrac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}\) is the \(d\times d\) Jacobian (or more general shape if \(\bm{\mu}_k\) and \(f_\phi(\bm{\mu}_k)\) differ in dimension).  The gradient backpropagates through \(f_\phi\).
+
+\section{Switching Linear Dynamical System}
 
 \paragraph{Setup.}
 Consider a time series of observations \(\{\bm{x}_t\}_{t=1}^T\), where each \(\bm{x}_t \in \mathbb{R}^d\).  
@@ -375,59 +426,9 @@ i.e.\ the normalized exponent for mode \(k\).
 \bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr).
 \]
 
-\section{Predictive coding}
 
-\paragraph{Setup.}
-We again have child vectors \(\{\bm{x}_i\}_{i=1}^N\) and a set of parent \(\bm{\mu}_k \in \mathbb{R}^d, k=1,\dots,K\).  However, rather than a direct difference \(\bm{x}_i-\bm{\mu}_k\), let us assume the \emph{model} maps \(\bm{\mu}_k\) through some non-linear function \(f_\phi(\cdot)\) before comparing to \(\bm{x}_i\).  For instance, \(f_\phi\) could be a neural network.
-
-\paragraph{Similarity function.}
-Define
-\[
-\mathrm{sim}\bigl(\bm{x}_i,\bm{\mu}_k\bigr)
-\;=\;
--\,\tfrac12\,
-\bigl\|\bm{x}_i \;-\; f_\phi(\bm{\mu}_k)\bigr\|^2.
-\]
-
-\paragraph{Energy.}
-\begin{equation}
-E^{\mathrm{PC}}\!\Bigl(\{\bm{x}_i\}, \{\bm{\mu}_k\}\Bigr)
-\;=\;
--\sum_{i=1}^N
-\ln \Bigl(\sum_{k=1}^K
-\exp\Bigl(-\tfrac12\,\bigl\|\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr\|^2\Bigr)\Bigr).
-\end{equation}
-
-\paragraph{Gradients.}
-\[
-\alpha_{i,k}
-\;=\;
-\mathrm{softmax}_k\Bigl(
--\,\tfrac12\,\bigl\|\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr\|^2
-\Bigr).
-\]
-
-\[
--\frac{\partial E^{\mathrm{PC}}}{\partial \bm{x}_i}
-\;=\;
-\sum_{k=1}^K 
-\alpha_{i,k}\,\bigl(\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr).
-\]
-\[
--\frac{\partial E^{\mathrm{PC}}}{\partial \bm{\mu}_k}
-\;=\;
-\sum_{i=1}^N 
-\alpha_{i,k}\,
-\underbrace{
-\frac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}
-}_{\text{Jacobian of }f_\phi}
-\;\bigl(\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr).
-\]
-Here, \(\tfrac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}\) is the \(d\times d\) Jacobian (or more general shape if \(\bm{\mu}_k\) and \(f_\phi(\bm{\mu}_k)\) differ in dimension).  The gradient backpropagates through \(f_\phi\).
-
-
-    \section{Coordinate ascent}
-    \label{sec:generic-slot-attention-em}
+\section{Coordinate ascent}
+\label{sec:generic-slot-attention-em}
     
     Consider an energy of the form
     \[

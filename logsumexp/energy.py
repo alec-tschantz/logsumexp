@@ -1,6 +1,7 @@
+from typing import Any, Callable
+
 import equinox as eqx
 from jax import Array, nn, numpy as jnp, random as jr
-from typing import Any
 
 
 class Energy(eqx.Module):
@@ -16,7 +17,7 @@ class CrossAttention(Energy):
     Wk: Array
     Wq: Array
 
-    def __init__(self, D: int, key: Array) -> None:
+    def __init__(self, D: int, key: Array):
         k1, k2 = jr.split(key, 2)
         self.Wk = jr.normal(k1, (D, D))
         self.Wq = jr.normal(k2, (D, D))
@@ -36,7 +37,7 @@ class SlotAttention(Energy):
     Wk: Array
     Wq: Array
 
-    def __init__(self, D: int, key: Array) -> None:
+    def __init__(self, D: int, key: Array):
         k1, k2 = jr.split(key, 2)
         self.Wk = jr.normal(k1, (D, D))
         self.Wq = jr.normal(k2, (D, D))
@@ -62,7 +63,7 @@ class SelfAttention(Energy):
         return Q @ K.T
 
 
-class Mixture(Energy):
+class GaussianMixture(Energy):
     Sigma: Array
 
     def __init__(self, D: int) -> None:
@@ -71,7 +72,24 @@ class Mixture(Energy):
     def measure(self, x: Array, mu: Array) -> Array:
         diffs = x[:, None, :] - mu[None, :, :]
         inv = jnp.linalg.inv(self.Sigma)
-        dist = 0.5 * jnp.einsum("nkd,dd,nkd->nk", diffs, inv, diffs)
-        logdet = 0.5 * jnp.log(jnp.linalg.det(self.Sigma))
-        c = 0.5 * x.shape[-1] * jnp.log(2.0 * jnp.pi)
-        return -(dist + logdet + c)
+        _, logdet = jnp.linalg.slogdet(self.Sigma)
+        dist = jnp.einsum("nkd,dd,nkd->nk", diffs, inv, diffs)
+        const = x.shape[-1] * jnp.log(2.0 * jnp.pi)
+        return -0.5 * (dist + logdet + const)
+
+
+class PredictiveCoding(Energy):
+    W: Array
+    b: Array
+    func: Callable
+
+    def __init__(self, D: int, func: Callable, key: Array) -> None:
+        k1, k2 = jr.split(key, 2)
+        self.W = jr.normal(k1, (D, D))
+        self.b = jr.normal(k2, (D,))
+        self.func = func
+
+    def measure(self, x: Array, mu: Array) -> Array:
+        f_mu = self.func(mu @ self.W.T + self.b)
+        diffs = x[:, None, :] - f_mu[None, :, :]
+        return -0.5 * jnp.sum(diffs**2, axis=-1)
