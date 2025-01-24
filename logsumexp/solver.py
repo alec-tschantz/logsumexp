@@ -1,6 +1,6 @@
 from typing import Dict, List, Tuple
 
-from diffrax import ODETerm, Dopri5, PIDController, diffeqsolve
+from diffrax import ODETerm, Heun, PIDController, diffeqsolve
 from jax import Array, numpy as jnp, grad, tree_map, tree_flatten, tree_unflatten
 
 from logsumexp import Energy, energy
@@ -18,7 +18,7 @@ def solve_nodes(edges, nodes):
         "t0": 0,
         "t1": 20,
         "dt0": None,
-        "solver": Dopri5(),
+        "solver": Heun(),
         "terms": ODETerm(_ode_term),
         "stepsize_controller": PIDController(rtol=1e-3, atol=1e-3),
     }
