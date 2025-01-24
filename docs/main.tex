@@ -452,50 +452,61 @@ The normalized outputs are obtained as the derivative of the energy with respect
 \]
 
 \section{Spatiotemporal Self-Attention}
-\label{sec:time-invariant-params}
+\label{sec:spatiotemporal-attention}
 
-We have \(K\) slots and \(T\) time steps, giving \(K \times T\) total tokens.  
-However, \emph{instead of} using a single global set of projection matrices \(\bm{W}^Q, \bm{W}^K, \bm{W}^V\) shared by all tokens, we now assume \emph{each slot} \(k\) has its own distinct parameters \(\bm{W}^Q_k, \bm{W}^K_k, \bm{W}^V_k\), but crucially \textbf{these parameters do not depend on time}.  That is, slot \(k\) applies the same set of parameters \(\bm{W}_k^Q,\bm{W}_k^K,\bm{W}_k^V\) at every time step \(t\).
+\paragraph{Setup.}
+We consider \(K\) slots (objects) observed over \(T\) time steps.  
+Each slot \(k \in \{1,\dots,K\}\) at time \(t \in \{1,\dots,T\}\) is indexed by \(n = (k,t)\), resulting in a total of \(N = K \times T\) tokens.  
+Let \(\bm{x}_n \in \mathbb{R}^d\) represent the feature vector of token \(n\).
 
-\paragraph{Setup.} For each object-slot \(k \in \{1,\dots,K\}\) and time step \(t \in \{1,\dots,T\}\), we have a vector \(\bm{x}_{k,t}\in \mathbb{R}^d\). We define:
+For each token \(n = (k,t)\), define its parent sets as:
 \[
-\bm{q}_{k,t} 
-\;=\;
-\bm{W}^Q_k \,\bm{x}_{k,t}, 
-\quad
-\bm{k}_{k,t}
-\;=\;
-\bm{W}^K_k \,\bm{x}_{k,t},
-\quad
-\bm{v}_{k,t}
-\;=\;
-\bm{W}^V_k \,\bm{x}_{k,t}.
+\mathcal{P}_n^{\mathrm{slot}} = \{ m = (k', t) \mid k' \neq k \}, \quad \mathcal{P}_n^{\mathrm{time}} = \{ m = (k, t') \mid t' < t \}.
 \]
-Each slot \(k\) has its own learnable \(\{\bm{W}^Q_k,\,\bm{W}^K_k,\,\bm{W}^V_k\}\), and these same matrices are used for all time steps \(t\).  Thus the model can specialize each slot’s query-key-value mapping without introducing separate time-dependent parameters.
+Thus, each token attends to other slots at the same time step and to its own past states.
 
-\paragraph{Full spatiotemporal attention.}  We concatenate all tokens \((k,t)\) into a single set \(\mathcal{S}\) of size \(K \times T\).  As before, we can define the pairwise similarity of token \((k,t)\) to \((k',t')\) by:
+\paragraph{Energy.}
+For each token \(n\), the similarity to a parent \(m\) is defined as:
 \[
-\mathrm{sim}\bigl(\bm{q}_{k,t}, \bm{k}_{k',t'}\bigr)
-\;=\;
-\bm{q}_{k,t}^\top \,\bm{k}_{k',t'}.
+\mathrm{sim}(\bm{x}_n, \bm{x}_m) =
+\begin{cases}
+\bm{q}_{n}^{\mathrm{slot}\top} \bm{k}_{m}^{\mathrm{slot}}, & \text{if } m \in \mathcal{P}_n^{\mathrm{slot}}, \\
+\bm{q}_{n}^{\mathrm{time}\top} \bm{k}_{m}^{\mathrm{time}}, & \text{if } m \in \mathcal{P}_n^{\mathrm{time}}, \\
+-\infty, & \text{otherwise},
+\end{cases}
 \]
-We then compute the attention “weights” (via a softmax over all \((k',t')\)) and form a new representation \(\widehat{\bm{x}}_{k,t}\) as a weighted sum of the corresponding \(\bm{v}_{k',t'}\).  Concretely:
+where
+\[
+\bm{q}_{n}^{\mathrm{slot}} = \bm{W}_k^{Q,\mathrm{slot}} \bm{x}_n, \quad \bm{k}_{m}^{\mathrm{slot}} = \bm{W}_{k'}^{K,\mathrm{slot}} \bm{x}_m,
+\]
+\[
+\bm{q}_{n}^{\mathrm{time}} = \bm{W}_k^{Q,\mathrm{time}} \bm{x}_n, \quad \bm{k}_{m}^{\mathrm{time}} = \bm{W}_k^{K,\mathrm{time}} \bm{x}_m.
+\]
+The energy for token \(n\) is then:
+\[
+E_n = -\ln \left( \sum_{m \in \mathcal{P}_n^{\mathrm{slot}}} \exp\bigl(\mathrm{sim}(\bm{x}_n, \bm{x}_m)\bigr) + \sum_{m \in \mathcal{P}_n^{\mathrm{time}}} \exp\bigl(\mathrm{sim}(\bm{x}_n, \bm{x}_m)\bigr) \right).
+\]
+
+\paragraph{Derivatives.}
+Let \(\mathbf{A} \in \mathbb{R}^{N \times N}\) be the attention matrix with entries
+\[
+A_{n,m} = \alpha_{n \to m} = \mathrm{softmax}_m\bigl(\mathrm{sim}(\bm{x}_n, \bm{x}_m)\bigr).
+\]
+For a specific token \(n\), the gradient with respect to \(\bm{x}_n\) is:
 \begin{equation}
-\label{eq:time-invariant-attn}
-\alpha_{(k,t)\to(k',t')}
-\;=\;
-\frac{\exp\!\bigl(\bm{q}_{k,t}^\top \,\bm{k}_{k',t'}\bigr)}{\displaystyle
-\sum_{(\tilde{k},\tilde{t})\in \mathcal{S}}
-\exp\!\bigl(\bm{q}_{k,t}^\top \,\bm{k}_{\tilde{k},\tilde{t}}\bigr)},
-\quad
-\widehat{\bm{x}}_{k,t}
-\;=\;
-\sum_{(k',t')\in \mathcal{S}}
-\alpha_{(k,t)\to(k',t')}\;\bm{v}_{k',t'}.
+\label{eq:grad_xn_spatiotemporal}
+\begin{aligned}
+\frac{\partial E_n}{\partial \bm{x}_n}
+\;=\;&
+\sum_{m \in \mathcal{P}_n^{\mathrm{slot}}} \alpha_{n \to m} \, \bm{W}_k^{Q,\mathrm{slot}\top} \bm{W}_{k'}^{K,\mathrm{slot}} \bm{x}_m \\
+&+
+\sum_{m \in \mathcal{P}_n^{\mathrm{time}}} \alpha_{n \to m} \, \bm{W}_k^{Q,\mathrm{time}\top} \bm{W}_k^{K,\mathrm{time}} \bm{x}_m.
+\end{aligned}
 \end{equation}
-Hence each token \((k,t)\) attends freely to all other objects and all other time steps, yet the \emph{projection} parameters are “slot-specific” but \emph{time-invariant}.  This can help each slot learn specialized ways of querying or encoding its own signals across time, while still using a single global attention mechanism to mix information among all \((k',t')\).  
+Here, the first term corresponds to \emph{inter-slot} attention and the second term corresponds to \emph{inter-time} attention.
 
-\paragraph{Complexity.}  The computational cost remains \(\mathcal{O}((KT)^2)\) for forming all pairwise dot products.  Parameter-count-wise, we now have \(K\) distinct sets of \(\bm{W}^Q,\bm{W}^K,\bm{W}^V\), each of size \(d\times d\), but this still does \emph{not} scale with \(T\).  We thus gain a “per-slot” specialization (rather than a single universal projection) but remain invariant to the number of time steps.
+\paragraph{Remark (Full Version).}
+Allowing tokens to attend to all slots across all time steps enables comprehensive interactions and temporal dependencies but increases computational complexity.
 
 
 \section{Coordinate ascent}
