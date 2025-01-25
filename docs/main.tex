@@ -97,7 +97,7 @@ If we differentiate w.r.t.\ \(\bm{\mu}_k\), then
 -\frac{\partial E^{\mathrm{GMM}}}{\partial \bm{\mu}_k}
 \;=\;
 \sum_{i=1}^N 
-\text{softmax}_k\!\bigl(\bm{A}_{ik}\bigr)
+\text{softmax}_k\!\bigl(\mathrm{sim}(\bm{x}_i,\bm{\mu}_k)\bigr)
 \;\bm{\Sigma}_k^{-1}\bigl(\bm{x}_i - \bm{\mu}_k\bigr).
 \]
 Setting this gradient to zero yields the usual GMM M-step:
@@ -105,9 +105,9 @@ Setting this gradient to zero yields the usual GMM M-step:
 \bm{\mu}_k
 \;=\;
 \frac{\sum_{i=1}^N 
-\text{softmax}_k\!\bigl(\bm{A}_{ik}\bigr)\;\bm{x}_i}
+\text{softmax}_k\!\bigl(\mathrm{sim}(\bm{x}_i,\bm{\mu}_k)\bigr)\;\bm{x}_i}
      {\sum_{i=1}^N
-     \text{softmax}_k\!\bigl(\bm{A}_{ik}\bigr)}.
+     \text{softmax}_k\!\bigl(\mathrm{sim}(\bm{x}_i,\bm{\mu}_k)\bigr)}.
 \]
 
 \section{Hopfield Networks}

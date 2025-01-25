@@ -9,4 +9,4 @@ from .energy import (
     LayerNorm,
     energy,
 )
-from .solver import solve_nodes
+from .solver import solve
