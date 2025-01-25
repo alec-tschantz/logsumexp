@@ -241,7 +241,7 @@ Since each \(\bm{x}_i\) is \emph{both} a child and a parent, its gradient is a s
     \end{aligned}
     \end{equation}
 
-    
+
 \section{Spatiotemporal Attention}
 
 \paragraph{Setup.}
@@ -347,7 +347,8 @@ The gradient with respect to \(\bm{x}_{k,t}^{(l)}\) is:
 \bm{W}_{v}^{Q,(l)\top} \bm{W}_{v}^{K,(l)} \bm{x}_{c,t}^{(l-1)}.
 \end{aligned}
 \end{equation}
-This term aggregates contributions from the children in layer \(l-1\), weighted by the attention \(\mathrm{softmax}_{c}(\bm{A}_{c,k})\), and is analogous to Slot Attention or Gaussian mixture models.
+
+This term aggregates contributions from the children in layer \(l-1\), weighted by the attention \(\mathrm{softmax}_{k}(\bm{A}_{c,k})\), and is analogous to Slot Attention or Gaussian mixture models.
 
 \paragraph{Top-down:}
 
@@ -408,7 +409,6 @@ The first term captures the influence of \(\bm{x}_{k,t}^{(l)}\) as a parent, agg
 
 
 
-    
 
 \section{Temporal:}
 
