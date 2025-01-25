@@ -16,14 +16,14 @@
 \section{General Framework}
 
 \paragraph{Setup.}  
-We consider a single set of nodes \(\bm{v} = \{\bm{v}_a : a \in \{1, 2, \ldots, A\}\}\), where each node \(\bm{v}_a \in \mathbb{R}^d\). The relationships between these nodes are defined by a set of \(M\) energy functions \(\{E_m : m \in \{1, 2, \ldots, M\}\}\). Each energy function \(E_m\) defines a subset of nodes acting as \emph{children} \(C_m \subseteq \{1, 2, \ldots, A\}\) and a subset acting as \emph{parents} \(P_m \subseteq \{1, 2, \ldots, A\}\), which may overlap.
+We consider a single set of nodes \(\bm{v} = \{\bm{v}_i : i \in \{1, 2, \ldots, N\}\}\), where each node \(\bm{v}_i \in \mathbb{R}^{d_i}\). The relationships between these nodes are defined by a set of \(M\) energy functions \(\{E_m : m \in \{1, 2, \ldots, M\}\}\). Each energy function \(E_m\) defines a subset of nodes acting as \emph{children} \(C_m \subseteq \{1, 2, \ldots, normalization\}\) and a subset acting as \emph{parents} \(P_m \subseteq \{1, 2, \ldots, N\}\), which may overlap.
 
 \paragraph{Energy.}  
 Each energy function \(E_m\) defines a similarity function:
 \begin{equation}
-\mathrm{sim}\bigl(\bm{v}_c, \bm{v}_p\bigr) \quad:\quad \mathbb{R}^d \times \mathbb{R}^d \to \mathbb{R},
+\mathrm{sim}\bigl(\bm{v}_c, \bm{v}_p\bigr) \quad:\quad \mathbb{R}^{d_c} \times \mathbb{R}^{p} \to \mathbb{R},
 \end{equation}
-which produces a scalar similarity between a child \(\bm{v}_c\) and a parent \(\bm{v}_p\). Using \( \{ \bm{v}_c \} = \{\bm{v}_c : c \in C_m\}\) and \( \{ \bm{v}_p \} = \{\bm{v}_p : p \in P_m\}\), the energy for \(E_m\) is defined as:
+which produces a scalar similarity between a child \(\bm{v}_c\) and a parent \(\bm{v}_p\). Let \( \{ \bm{v}_c \} = \{\bm{v}_c : c \in C_m\}\) and \( \{ \bm{v}_p \} = \{\bm{v}_p : p \in P_m\}\), the energy for \(E_m\) is defined as:
 \begin{equation}
 E_m\bigl(\{ \bm{v}_c \} , \{ \bm{v}_p \} \bigr)
 \;=\;
@@ -110,61 +110,6 @@ Setting this gradient to zero yields the usual GMM M-step:
      \text{softmax}_k\!\bigl(\bm{A}_{ik}\bigr)}.
 \]
 
-
-\section{Cross Attention}
-
-\paragraph{Setup.}
-We have a set of child vectors (queries) \(\bm{Q}\in\mathbb{R}^{d\times N_Q}\) and a set of parent vectors (keys) \(\bm{K}\in\mathbb{R}^{d\times N_K}\).  Let
-\[
-C \;=\;\{1,\ldots,N_Q\}, 
-\quad
-P \;=\;\{1,\ldots,N_K\},
-\]
-so \(\bm{v}_c = \bm{q}_c\) is the \(c\)-th query, and \(\bm{v}_p = \bm{k}_p\) is the \(p\)-th key.  Suppose we have learnable weight matrices \(\bm{W}^Q,\bm{W}^K \in \mathbb{R}^{d \times d}\).  Then
-\[
-\bm{q}_c 
-\;=\;
-\bm{W}^Q\bm{x}^Q_c,
-\quad
-\bm{k}_p 
-\;=\;
-\bm{W}^K\bm{x}^K_p,
-\]
-where \(\bm{x}^Q_c\) is the raw \(c\)-th query token and \(\bm{x}^K_p\) the raw \(p\)-th key token.
-
-\paragraph{Similarity function.}
-\[
-\mathrm{sim}\bigl(\bm{q}_c, \bm{k}_p\bigr)
-\;=\;
-\bm{q}_c^\top \bm{k}_p.
-\]
-
-\paragraph{Energy.}
-\begin{equation}
-E^{\mathrm{Cross}}\!\Bigl(\{\bm{q}_c\}, \{\bm{k}_p\}\Bigr)
-\;=\;
--\sum_{c=1}^{N_Q}
-\ln \Bigl(\sum_{p=1}^{N_K}
-\exp\bigl(\bm{q}_c^\top\,\bm{k}_p\bigr)\Bigr).
-\end{equation}
-
-\paragraph{Gradients.}
-\begin{equation}
--\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{q}_c}
-\;=\;
-\sum_{p=1}^{N_K}
-\text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
-\bm{k}_p.
-\end{equation}
-\begin{equation}
--\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{k}_p}
-\;=\;
-\sum_{c=1}^{N_Q}
-\text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
-\bm{q}_c.
-\end{equation}
-When mapping back to the raw tokens \(\bm{x}^Q_c\) or \(\bm{x}^K_p\), chain-rule multiplies by \(\bm{W}^Q\) or \(\bm{W}^K\), respectively.
-
 \section{Hopfield Networks}
 
 \paragraph{Setup.}
@@ -225,18 +170,19 @@ E^{\mathrm{Slot}}\!\Bigl(\{\bm{x}_j\}, \{\bm{\mu}_i\}\Bigr)
 
 \paragraph{Gradients.}
 \begin{equation}
+    -\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{\mu}_i}
+    \;=\;
+    \sum_{j=1}^N
+    \text{softmax}_{i}\!\Bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\Bigr)\,
+    \bm{W}_Q^\top \bm{W}_K\,\bm{x}_j.
+    \end{equation}
+    
+\begin{equation}
 -\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{x}_j}
 \;=\;
 \sum_{i=1}^S
 \text{softmax}_{i}\!\Bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\Bigr)\,
 \bm{W}_K^\top \bm{W}_Q\,\bm{\mu}_i.
-\end{equation}
-\begin{equation}
--\frac{\partial E^{\mathrm{Slot}}}{\partial \bm{\mu}_i}
-\;=\;
-\sum_{j=1}^N
-\text{softmax}_{i}\!\Bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\Bigr)\,
-\bm{W}_Q^\top \bm{W}_K\,\bm{x}_j.
 \end{equation}
 
 \section{Self-Attention}
@@ -296,211 +242,420 @@ Since each \(\bm{x}_i\) is \emph{both} a child and a parent, its gradient is a s
     \end{equation}
 
 
-    \section{Spatiotemporal Self-Attention}
-    \label{sec:spatiotemporal-attention}
-    
-    \paragraph{Setup.}
-    We consider \(K\) slots (objects) observed over \(T\) time steps.  
-    Each slot \(k \in \{1,\dots,K\}\) at time \(t \in \{1,\dots,T\}\) is indexed by \(n = (k,t)\), resulting in a total of \(N = K \times T\) tokens.  
-    Let \(\bm{x}_n \in \mathbb{R}^d\) represent the feature vector of token \(n\).
-    
-    For each token \(n = (k,t)\), define its parent sets as:
-    \[
-    \mathcal{P}_n^{\mathrm{slot}} = \{ m = (k', t) \mid k' \neq k \}, \quad \mathcal{P}_n^{\mathrm{time}} = \{ m = (k, t') \mid t' < t \}.
-    \]
-    Thus, each token attends to other slots at the same time step and to its own past states.
-    
-    \paragraph{Energy.}
-    For each token \(n\), the similarity to a parent \(m\) is defined as:
-    \[
-    \mathrm{sim}(\bm{x}_n, \bm{x}_m) =
-    \begin{cases}
-    \bm{q}_{n}^{\mathrm{slot}\top} \bm{k}_{m}^{\mathrm{slot}}, & \text{if } m \in \mathcal{P}_n^{\mathrm{slot}}, \\
-    \bm{q}_{n}^{\mathrm{time}\top} \bm{k}_{m}^{\mathrm{time}}, & \text{if } m \in \mathcal{P}_n^{\mathrm{time}}, \\
-    -\infty, & \text{otherwise},
-    \end{cases}
-    \]
-    where
-    \[
-    \bm{q}_{n}^{\mathrm{slot}} = \bm{W}_k^{Q,\mathrm{slot}} \bm{x}_n, \quad \bm{k}_{m}^{\mathrm{slot}} = \bm{W}_{k'}^{K,\mathrm{slot}} \bm{x}_m,
-    \]
-    \[
-    \bm{q}_{n}^{\mathrm{time}} = \bm{W}_k^{Q,\mathrm{time}} \bm{x}_n, \quad \bm{k}_{m}^{\mathrm{time}} = \bm{W}_k^{K,\mathrm{time}} \bm{x}_m.
-    \]
-    The energy for token \(n\) is then:
-    \[
-    E_n = -\ln \left( \sum_{m \in \mathcal{P}_n^{\mathrm{slot}}} \exp\bigl(\mathrm{sim}(\bm{x}_n, \bm{x}_m)\bigr) + \sum_{m \in \mathcal{P}_n^{\mathrm{time}}} \exp\bigl(\mathrm{sim}(\bm{x}_n, \bm{x}_m)\bigr) \right).
-    \]
-    
-    \paragraph{Derivatives.}
-    Let \(\mathbf{A} \in \mathbb{R}^{N \times N}\) be the attention matrix with entries
-    \[
-    A_{n,m} = \alpha_{n \to m} = \mathrm{softmax}_m\bigl(\mathrm{sim}(\bm{x}_n, \bm{x}_m)\bigr).
-    \]
-    For a specific token \(n\), the gradient with respect to \(\bm{x}_n\) is:
-    \begin{equation}
-    \label{eq:grad_xn_spatiotemporal}
+
+%     \section{Spatiotemporal Attention}
+
+% \paragraph{Setup.}
+% We consider a hierarchy of \(L\) layers, each containing \(K_l\) latent variables of dimension \(D_l\).  Concretely, let 
+% \(\bm{x}_{k,t}^{(l)} \in \mathbb{R}^{D_l}\)
+% denote the \(k\)-th variable (or ``slot'') in layer \(l\) at time \(t\).  The lowest layer \(l=1\) has \(K_1 = N\) observed variables (e.g.\ pixels) and dimension \(D_1\) (e.g.\ \([x,y,r,g,b]\)), while higher layers have separate dimensions \(D_l\) and numbers of slots \(K_l\).  Our goal is to define an energy that couples these variables \emph{vertically} (across layers), \emph{concurrently} (within the same layer and time), and \emph{temporally} (across times). The number of variables at each layer generally decreases, \(N = K_1 > K_2 > \cdots > K_L\).
+
+% \paragraph{Similarity Functions.}
+% We introduce three types of similarity, each with its own projection matrices.  For vertical connections (e.g.\ linking layers \(l-1\) and \(l\)), we define
+% \begin{equation}
+% \mathrm{sim}_{v}^{(l)}(\bm{x}, \bm{y})
+% \;=\;
+% \bigl(\bm{W}_{v}^{Q,(l)}\,\bm{x}\bigr)^\top
+% \bigl(\bm{W}_{v}^{K,(l)}\,\bm{y}\bigr),
+% \end{equation}
+% for concurrency (slots within the same layer and time),
+% \begin{equation}
+% \mathrm{sim}_{c}^{(l)}(\bm{x}, \bm{y})
+% \;=\;
+% \bigl(\bm{W}_{c}^{Q,(l)}\,\bm{x}\bigr)^\top
+% \bigl(\bm{W}_{c}^{K,(l)}\,\bm{y}\bigr),
+% \end{equation}
+% and for temporal connections (the same slot across different times),
+% \begin{equation}
+% \mathrm{sim}_{t}^{(l)}(\bm{x}, \bm{y})
+% \;=\;
+% \bigl(\bm{W}_{t}^{Q,(l)}\,\bm{x}\bigr)^\top
+% \bigl(\bm{W}_{t}^{K,(l)}\,\bm{y}\bigr).
+% \end{equation}
+% Here, each \(\bm{W}_{\bullet}^{Q,(l)}\) and \(\bm{W}_{\bullet}^{K,(l)}\) is a learnable parameter matrix for layer \(l\).
+
+% \paragraph{Energy.}
+% At each layer \(l\), we split the total energy into three log-sum-exp terms:
+% \begin{equation}
+% \begin{aligned}
+% E_{v}^{(l)}
+% &=\;
+% -\sum_{t=1}^T
+% \sum_{c=1}^{K_{l-1}}
+% \ln \Bigl(
+% \sum_{k=1}^{K_l}
+% \exp \bigl(
+% \mathrm{sim}_{v}^{(l)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{c,t}^{(l-1)})
+% \bigr)
+% \Bigr),
+% \\
+% E_{c}^{(l)}
+% &=\;
+% -\sum_{t=1}^T
+% \sum_{k=1}^{K_l}
+% \ln \Bigl(
+% \sum_{\substack{k'=1 \\ k'\neq k}}^{K_l}
+% \exp \bigl(
+% \mathrm{sim}_{c}^{(l)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{k',t}^{(l)})
+% \bigr)
+% \Bigr),
+% \\
+% E_{t}^{(l)}
+% &=\;
+% -\sum_{k=1}^{K_l}
+% \sum_{t=2}^T
+% \ln \Bigl(
+% \sum_{t'<t}
+% \exp \bigl(
+% \mathrm{sim}_{t}^{(l)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{k,t'}^{(l)})
+% \bigr)
+% \Bigr).
+% \end{aligned}
+% \end{equation}
+% Summing over all layers \(l\in\{1,\dots,L\}\) yields the total energy \(E\).  These three terms mirror familiar patterns in slot-attention (\(E_{v}^{(l)}\)), self-attention within a layer (\(E_{c}^{(l)}\)), and causal self-attention across time (\(E_{t}^{(l)}\)).
+
+% \paragraph{Four Partial Derivatives.}
+% Now, consider one variable \(\bm{x}_{k,t}^{(l)}\).  Its gradient factors into four components:
+% \begin{equation}
+%     \begin{aligned}
+%     -\frac{\partial E}{\partial \bm{x}_{k,t}^{(l)}}
+%     &= \underbrace{\text{bottom-up from explaining children in layer }(l-1)}_{\text{vertical}} \\
+%     &\quad + \underbrace{\text{top-down from parents in layer }(l+1)}_{\text{vertical}} \\
+%     &\quad + \underbrace{\text{lateral with other variables at time }t}_{\text{concurrency}} \\
+%     &\quad + \underbrace{\text{temporal from variables with past times }t'<t}_{\text{temporal}}.
+%     \end{aligned}
+%     \end{equation}
+
+
+% \paragraph{Attention Weights.}
+% Each log-sum-exp implicitly defines a \(\mathrm{softmax}\) over possible ``parents.''  For example, in the vertical energy \(E_{v}^{(l)}\), each child \(\bm{x}_{c,t}^{(l-1)}\) competes among the possible parents \(\{\bm{x}_{k,t}^{(l)}\}\).  We denote the resulting attention weight by
+% \begin{equation}
+% \alpha_{v}^{(l)}(c\!\to\!k)
+% \;=\;
+% \frac{\exp\bigl(\mathrm{sim}_{v}^{(l)}(\bm{x}_{k,t}^{(l)},\bm{x}_{c,t}^{(l-1)} )\bigr)}
+% {\sum_{k''=1}^{K_l}
+%  \exp\bigl(\mathrm{sim}_{v}^{(l)}(\bm{x}_{k'',t}^{(l)}, \bm{x}_{c,t}^{(l-1)})\bigr)}.
+% \end{equation}
+% Similarly, \(\alpha_{c}^{(l)}(k\!\to\!k')\) emerges from \(E_{c}^{(l)}\) (slots in the same layer and time), and \(\alpha_{t}^{(l)}(t\!\to\!t')\) emerges from \(E_{t}^{(l)}\) (the same slot across time).  These attention weights directly parallel the ``responsibilities'' in GMM or the attention probabilities in Transformers.
+
+% \paragraph{Bottom-up Gradient:}
+% \begin{equation}
+% -\frac{\partial E_{v}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+% \;=\;
+% \sum_{c=1}^{K_{l-1}}
+% \alpha_{v}^{(l)}(c\!\to\!k)
+% \;\frac{\partial}{\partial \bm{x}_{k,t}^{(l)}}
+% \mathrm{sim}_{v}^{(l)}\bigl(\bm{x}_{k,t}^{(l)},\bm{x}_{c,t}^{(l-1)}\bigr).
+% \end{equation}
+% This term mirrors Slot-Attention or Gaussian-mixture updates, where each parent \(\bm{x}_{k,t}^{(l)}\) aggregates contributions from the children \(\bm{x}_{c,t}^{(l-1)}\), weighted by \(\alpha_{v}^{(l)}\).
+
+% \paragraph{Top-down Gradient:}
+% \begin{equation}
+% -\frac{\partial E_{v}^{(l+1)}}{\partial \bm{x}_{k,t}^{(l)}}
+% \;=\;
+% \sum_{p=1}^{K_{l+1}}
+% \alpha_{v}^{(l+1)}(k\!\to\!p)
+% \;\frac{\partial}{\partial \bm{x}_{k,t}^{(l)}}
+% \mathrm{sim}_{v}^{(l+1)}\bigl(\bm{x}_{p,t}^{(l+1)}, \bm{x}_{k,t}^{(l)}\bigr).
+% \end{equation}
+% Here, \(\bm{x}_{k,t}^{(l)}\) appears as a child for the layer \(l+1\).  This mirrors the parent-term in our earlier Hopfield/Self-Attention derivations.
+
+% \subparagraph{Inter-layer Gradient}
+% In standard self-attention, each token both attends to others (child perspective) and is attended by others (parent perspective).  Hence we split it across two lines:
+% \begin{equation}
+% \begin{aligned}
+% -\frac{\partial E_{c}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+% &=
+% \underbrace{\sum_{k'\neq k}
+% \alpha_{c}^{(l)}(k\!\to\!k')
+% \;\frac{\partial}{\partial \bm{x}_{k,t}^{(l)}}
+% \mathrm{sim}_{c}^{(l)}\bigl(\bm{x}_{k,t}^{(l)}, \bm{x}_{k',t}^{(l)}\bigr)
+% }_{\text{child perspective}}\\
+% &\quad+\;
+% \underbrace{\sum_{k'\neq k}
+% \alpha_{c}^{(l)}(k'\!\to\!k)
+% \;\frac{\partial}{\partial \bm{x}_{k,t}^{(l)}}
+% \mathrm{sim}_{c}^{(l)}\bigl(\bm{x}_{k',t}^{(l)}, \bm{x}_{k,t}^{(l)}\bigr)
+% }_{\text{parent perspective}}.
+% \end{aligned}
+% \end{equation}
+% This exactly generalizes our Hopfield or self-attention updates in the earlier document.
+
+% \subparagraph{Temporal Gradient}
+% Likewise, each \(\bm{x}_{k,t}^{(l)}\) attends to its own past \(\{\bm{x}_{k,t'}^{(l)} : t'<t\}\) and is attended by its future \(\{\bm{x}_{k,t''}^{(l)} : t''>t\}\) if non-causal attention is allowed.  We again split child vs.\ parent:
+% \begin{equation}
+% \begin{aligned}
+% -\frac{\partial E_{t}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+% &=
+% \underbrace{\sum_{t'<t}
+% \alpha_{t}^{(l)}(t\!\to\!t')
+% \;\frac{\partial}{\partial \bm{x}_{k,t}^{(l)}}
+% \mathrm{sim}_{t}^{(l)}\bigl(\bm{x}_{k,t}^{(l)}, \bm{x}_{k,t'}^{(l)}\bigr)
+% }_{\text{child perspective}}
+% \\
+% &\quad+\;
+% \underbrace{\sum_{t''>t}
+% \alpha_{t}^{(l)}(t''\!\to\!t)
+% \;\frac{\partial}{\partial \bm{x}_{k,t}^{(l)}}
+% \mathrm{sim}_{t}^{(l)}\bigl(\bm{x}_{k,t''}^{(l)}, \bm{x}_{k,t}^{(l)}\bigr)
+% }_{\text{parent perspective (if non-causal)}}.
+% \end{aligned}
+% \end{equation}
+% This parallels Transformer-style causal masking across time, matching the earlier self-attention across sequences.
+
+\section{Spatiotemporal Attention}
+
+\paragraph{Setup.}
+We consider a hierarchy of \(L\) layers, each containing \(K_l\) latent variables of dimension \(D_l\). Concretely, let 
+\(\bm{x}_{k,t}^{(l)} \in \mathbb{R}^{D_l}\)
+denote the \(k\)-th variable (or ``slot'') in layer \(l\) at time \(t\). The lowest layer (\(l=1\)) has \(K_1 = N\) observed variables (e.g., pixels) and dimension \(D_1\) (e.g., \([x, y, r, g, b]\)), while higher layers have separate dimensions \(D_l\) and numbers of slots \(K_l\). Our goal is to define an energy that couples these variables \emph{vertically} (across layers), \emph{concurrently} (within the same layer and time), and \emph{temporally} (across time).
+
+\paragraph{Similarity Functions.}
+We introduce three types of similarity, each with its own projection matrices. For inter-layer connections (linking layers \(l-1\) and \(l\)), we define:
+\begin{equation}
+\mathrm{sim}_{v}^{(l)}(\bm{x}, \bm{x}')
+=
+\bigl(\bm{W}_{v}^{K,(l)}\,\bm{x}\bigr)^\top
+\bigl(\bm{W}_{v}^{Q,(l)}\,\bm{x}'\bigr),
+\end{equation}
+For intra-layer (slots within the same layer and time):
+\begin{equation}
+\mathrm{sim}_{c}^{(l)}(\bm{x}, \bm{x}')
+=
+\bigl(\bm{W}_{c}^{Q,(l)}\,\bm{x}\bigr)^\top
+\bigl(\bm{W}_{c}^{K,(l)}\,\bm{x}'\bigr),
+\end{equation}
+For temporal connections (the same slot across different times):
+\begin{equation}
+\mathrm{sim}_{t}^{(l)}(\bm{x}, \bm{x}')
+=
+\bigl(\bm{W}_{t}^{Q,(l)}\,\bm{x}\bigr)^\top
+\bigl(\bm{W}_{t}^{K,(l)}\,\bm{x}'\bigr).
+\end{equation}
+Here, \(\bm{W}_{\bullet}^{Q,(l)}\) and \(\bm{W}_{\bullet}^{K,(l)}\) are learnable projection matrices for layer \(l\). The intra-layer and temporal parameters parallel the key-query mechanism in self-attention, while the inter-layer parameters are analogous to the inverted attention mechanism used in slot attention.
+
+
+\paragraph{Energy}
+
+
+At each layer \(l\), the total energy is split into three terms:
+\begin{equation}
     \begin{aligned}
-    \frac{\partial E_n}{\partial \bm{x}_n}
-    \;=\;&
-    \sum_{m \in \mathcal{P}_n^{\mathrm{slot}}} \alpha_{n \to m} \, \bm{W}_k^{Q,\mathrm{slot}\top} \bm{W}_{k'}^{K,\mathrm{slot}} \bm{x}_m \\
-    &+
-    \sum_{m \in \mathcal{P}_n^{\mathrm{time}}} \alpha_{n \to m} \, \bm{W}_k^{Q,\mathrm{time}\top} \bm{W}_k^{K,\mathrm{time}} \bm{x}_m.
+    E_{v}^{(l)}
+    &=
+    -\sum_{t=1}^T
+    \sum_{c=1}^{K_{l-1}}
+    \underbrace{
+    \ln \Biggl(
+    \sum_{k=1}^{K_l}
+    \exp\bigl(\mathrm{sim}_{v}^{(l)}(\bm{x}_{c,t}^{(l-1)}, \bm{x}_{k,t}^{(l)})\bigr)
+    \Biggr)
+    }_{\text{Inter-layer energy}},
+    \\
+    E_{c}^{(l)}
+    &=
+    -\sum_{t=1}^T
+    \sum_{k=1}^{K_l}
+    \underbrace{
+    \ln \Biggl(
+    \sum_{\substack{k'=1 \\ k'\neq k}}^{K_l}
+    \exp\bigl(\mathrm{sim}_{c}^{(l)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{k',t}^{(l)})\bigr)
+    \Biggr)
+    }_{\text{Intra-layer energy}},
+    \\
+    E_{t}^{(l)}
+    &=
+    -\sum_{k=1}^{K_l}
+    \sum_{t=2}^T
+    \underbrace{
+    \ln \Biggl(
+    \sum_{t'<t}
+    \exp\bigl(\mathrm{sim}_{t}^{(l)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{k,t'}^{(l)})\bigr)
+    \Biggr)
+    }_{\text{Temporal energy}}.
     \end{aligned}
     \end{equation}
-    Here, the first term corresponds to \emph{inter-slot} attention and the second term corresponds to \emph{inter-time} attention.
+Summing these over all layers \(l \in \{1, \dots, L\}\) defines the total energy \(E\). These terms correspond to inter-layer connections (\(E_{v}^{(l)}\)) and match the energy function for slot attention, intra-layer connections (\(E_{c}^{(l)}\)) which match the energy function for self attention, and temporal connections (\(E_{t}^{(l)}\)), which match the energy function for \emph{causal} self attention (as each variable is only explained by past variables).
+
+\paragraph{Gradients}
+Consider a single variable \(\bm{x}_{k,t}^{(l)}\). Its gradient with respect to the energy decomposes into four parts:
+
+\begin{equation}
+-\frac{\partial E}{\partial \bm{x}_{k,t}^{(l)}} = 
+\underbrace{-\frac{\partial E_{v}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}}_{\text{bottom-up}} 
++ 
+\underbrace{-\frac{\partial E_{v}^{(l+1)}}{\partial \bm{x}_{k,t}^{(l)}}}_{\text{top-down}} 
++ 
+\underbrace{-\frac{\partial E_{c}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}}_{\text{intra-layer}} 
++ 
+\underbrace{-\frac{\partial E_{t}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}}_{\text{temporal}}.
+\end{equation}
+
+\paragraph{Bottom-up:}
+
+We define a similarity matrix \(\bm{A}_{c,k}\), representing the interactions between \(\bm{x}_{k,t}^{(l)}\) in layer \(l\) and \(\bm{x}_{c,t}^{(l-1)}\) in the layer below.
+\begin{equation}
+\bm{A}_{c,k} = \mathrm{sim}_{v}^{(l)}(\bm{x}_{c,t}^{(l-1)}, \bm{x}_{k,t}^{(l)}),
+\end{equation}
+
+The gradient with respect to \(\bm{x}_{k,t}^{(l)}\) is:
+\begin{equation}
+\begin{aligned}
+-\frac{\partial E_{v}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+&=
+\sum_{c=1}^{K_{l-1}}
+\mathrm{softmax}_{k}\bigl(\bm{A}_{c,k}\bigr)
+\bm{W}_{v}^{Q,(l)\top} \bm{W}_{v}^{K,(l)} \bm{x}_{c,t}^{(l-1)}.
+\end{aligned}
+\end{equation}
+This term aggregates contributions from the children in layer \(l-1\), weighted by the attention \(\mathrm{softmax}_{c}(\bm{A}_{c,k})\), and is analogous to Slot Attention or Gaussian mixture models.
+
+\paragraph{Top-down:}
+
+We define a similarity matrix \(\bm{A}_{k,p}\), representing the interactions between \(\bm{x}_{k,t}^{(l)}\) in layer \(l\) and \(\bm{x}_{p,t}^{(l+1)}\) in the layer above.
+\begin{equation}
+\bm{A}_{k,p} = \mathrm{sim}_{v}^{(l+1)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{p,t}^{(l+1)}),
+\end{equation}
+
+The gradient with respect to \(\bm{x}_{k,t}^{(l)}\) is:
+\begin{equation}
+\begin{aligned}
+-\frac{\partial E_{v}^{(l+1)}}{\partial \bm{x}_{k,t}^{(l)}}
+&=
+\sum_{p=1}^{K_{l+1}}
+\mathrm{softmax}_{p}\bigl(\bm{A}_{k,p}\bigr)
+\bm{W}_{v}^{K,(l+1)\top} \bm{W}_{v}^{Q,(l+1)} \bm{x}_{p,t}^{(l+1)}.
+\end{aligned}
+\end{equation}
+This term captures the influence of \(\bm{x}_{k,t}^{(l)}\) being treated as a child, weighted by the attention \(\mathrm{softmax}_{p}(\bm{A}_{k,p})\), and reflects the top-down influence from layer \(l+1\), and is analogous to Hopfield attention or the parent term in self-attention.
+
+
+\paragraph{Intra-layer:}
+
+We define two similarity matrices, \(\bm{A}_{k,k'}\) and \(\bm{A}_{k',k}\), representing the bidirectional interactions between \(\bm{x}_{k,t}^{(l)}\) and other slots \(\bm{x}_{k',t}^{(l)}\):
+\begin{equation}
+\begin{aligned}
+\bm{A}_{k,k'} &= \mathrm{sim}_{c}^{(l)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{k',t}^{(l)}), \\
+\bm{A}_{k',k} &= \mathrm{sim}_{c}^{(l)}(\bm{x}_{k',t}^{(l)}, \bm{x}_{k,t}^{(l)}), \\
+\end{aligned}
+\end{equation}
+where 
+\[
+\mathrm{sim}_{c}^{(l)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{k',t}^{(l)}) 
+= \bigl(\bm{W}_{c}^{Q,(l)} \bm{x}_{k,t}^{(l)}\bigr)^\top \bigl(\bm{W}_{c}^{K,(l)} \bm{x}_{k',t}^{(l)}\bigr).
+\]
+
+The gradient with respect to \(\bm{x}_{k,t}^{(l)}\) is:
+\begin{equation}
+\begin{aligned}
+-\frac{\partial E_{c}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+&=
+\underbrace{
+\sum_{k'\neq k}
+\mathrm{softmax}_{k}\bigl(\bm{A}_{k',k}\bigr)
+\bm{W}_{c}^{K,(l)\top} \bm{W}_{c}^{Q,(l)} \bm{x}_{k',t}^{(l)}
+}_{\text{\(\bm{x}_{k,t}^{(l)}\) acting as parent (explaining others)}} 
+\\
+&\quad +
+\underbrace{
+\sum_{k'\neq k}
+\mathrm{softmax}_{k'}\bigl(\bm{A}_{k, k'}\bigr)
+\bm{W}_{c}^{Q,(l)\top} \bm{W}_{c}^{K,(l)} \bm{x}_{k',t}^{(l)}
+}_{\text{\(\bm{x}_{k,t}^{(l)}\) acting as child (being explained by others)}}.
+\end{aligned}
+\end{equation}
+The first term captures the influence of \(\bm{x}_{k,t}^{(l)}\) as a parent, aggregating the contributions from other slots \(\bm{x}_{k',t}^{(l)}\) it explains, weighted by \(\mathrm{softmax}_{k'}(\bm{A}_{k,k'})\). The second term reflects \(\bm{x}_{k,t}^{(l)}\)'s role as a child, being explained by other slots \(\bm{x}_{k',t}^{(l)}\), weighted by \(\mathrm{softmax}_{k}(\bm{A}_{k',k})\).
+
+
+
+
     
-    \paragraph{Remark (Full Version).}
-    Allowing tokens to attend to all slots across all time steps enables comprehensive interactions and temporal dependencies but increases computational complexity.
+
+\section{Temporal:}
+
+\paragraph{Setup.}
+We define a similarity matrix \(\bm{A}_{t,t'}\) representing the interaction between a slot \(\bm{x}_{k,t}^{(l)}\) at time \(t\) and its past representation \(\bm{x}_{k,t'}^{(l)}\) at time \(t'\), for \(t'<t\):
+\begin{equation}
+\bm{A}_{t,t'} \;=\;
+\mathrm{sim}_{t}^{(l)}\!\Bigl(\bm{x}_{k,t}^{(l)},\,\bm{x}_{k,t'}^{(l)}\Bigr)
+\;=\;
+\bigl(\bm{W}_{t}^{Q,(l)}\,\bm{x}_{k,t}^{(l)}\bigr)^\top
+\bigl(\bm{W}_{t}^{K,(l)}\,\bm{x}_{k,t'}^{(l)}\bigr).
+\end{equation}
+
+\paragraph{Gradient.}
+Assuming causal attention (i.e.\ no future times), the gradient w.r.t.\ \(\bm{x}_{k,t}^{(l)}\) is:
+\begin{equation}
+\begin{aligned}
+-\frac{\partial E_{t}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+&=
+\sum_{t'<t}
+\mathrm{softmax}_{t'}\bigl(\bm{A}_{t,t'}\bigr)\,
+\bm{W}_{t}^{Q,(l)\top}\,\bm{W}_{t}^{K,(l)}\,\bm{x}_{k,t'}^{(l)}.
+\end{aligned}
+\end{equation}
+Thus \(\bm{x}_{k,t}^{(l)}\) is influenced only by its own past \(\bm{x}_{k,t'}^{(l)}\) (\(t'<t\)), as in causal self-attention.
+
+
+
+\paragraph{Remark (Full Version).}
+We can generalize to let each latent \(\bm{s}_{k,t}\) attend \emph{all} data features and \emph{all} slot latents at \emph{any} time.  This merges the three energies into a single large log-sum-exp, imposing direct competition among data, concurrency, and temporal parents, but increases complexity to \(\mathcal{O}((N + K)\,T)^2\). 
+
     
-    \section{Full Model: Spatiotemporal Slot Attention}
+    \section{Cross Attention}
 
     \paragraph{Setup.}
-    We have two sets of variables, data $\{\bm{x}_{p,t}\in\mathbb{R}^d : p=1,\ldots,N,\;\;t=1,\ldots,T\}$ and latents $\{\bm{s}_{k,t}\in\mathbb{R}^d : k=1,\ldots,K,\;\;t=1,\ldots,T\}$.
-    Each time step \(t\) has \(N\) data vectors \(\bm{x}_{p,t}\) (e.g. pixels) and \(K\) latent vectors \(\bm{s}_{k,t}\).  We split the overall energy into three terms:
-    
-    For each \(t\) and each latent \(\bm{s}_{k,t}\), we define an energy term where \(\bm{s}_{k,t}\) is the \emph{parent} and the data \(\bm{x}_{p,t}\) (for \(p=1,\dots,N\)) are its \emph{parents}. Concretely,
+    We have a set of child vectors (queries) \(\bm{Q}\in\mathbb{R}^{d\times N_Q}\) and a set of parent vectors (keys) \(\bm{K}\in\mathbb{R}^{d\times N_K}\).  Let
     \[
-    E^{\mathrm{data}}
-    = 
-    -\sum_{t=1}^T\sum_{k=1}^K
-    \ln\Bigl(\sum_{p=1}^N
-    \exp\!\bigl(\mathrm{sim}^{\mathrm{data}}(\bm{s}_{k,t},\bm{x}_{p,t})\bigr)\Bigr).
-    \]
-    
-    For each \(t\), each latent \(\bm{s}_{k,t}\) is a \emph{child} whose \emph{parents} are the other latents \(\{\bm{s}_{k',t}\mid k'\neq k\}\) at the same time step:
-    \[
-    E^{\mathrm{concurrent}}
-    =
-    -\sum_{t=1}^T\sum_{k=1}^K
-    \ln\Bigl(\sum_{\substack{k'=1 \\ k'\neq k}}^K
-    \exp\!\bigl(\mathrm{sim}^{\mathrm{slot}}(\bm{s}_{k,t},\bm{s}_{k',t})\bigr)\Bigr).
-    \]
-    
-    For each slot index \(k\), each \(\bm{s}_{k,t}\) is a \emph{child} whose \emph{parents} are its own past latents \(\{\bm{s}_{k,t'}\mid t'<t\}\).  A simple causal version blocks any \(t'\ge t\):
-    \[
-    E^{\mathrm{time}}
-    =
-    -\sum_{k=1}^K\sum_{t=2}^T
-    \ln\Bigl(\sum_{t'<\,t}
-    \exp\!\bigl(\mathrm{sim}^{\mathrm{time}}(\bm{s}_{k,t},\bm{s}_{k,t'})\bigr)\Bigr).
-    \]
-    
-    \noindent
-    The \textbf{total energy} is
-    \[
-    E^{\mathrm{Full}}
-    =
-    E^{\mathrm{data}}
-    \;+\;
-    E^{\mathrm{concurrent}}
-    \;+\;
-    E^{\mathrm{time}}.
-    \]
-    
-    \paragraph{Parameters and Similarity Functions.}
-    We define distinct projection matrices for each type of interaction.  For latent--data,
-    \[
-    \bm{q}_{k,t}^{\mathrm{data}}=\bm{W}_{k}^{Q,\mathrm{data}}\bm{s}_{k,t}, 
+    C \;=\;\{1,\ldots,N_Q\}, 
     \quad
-    \bm{k}_{p,t}^{\mathrm{data}}=\bm{W}^{K,\mathrm{data}}\bm{x}_{p,t},
-    \quad
-    \mathrm{sim}^{\mathrm{data}}(\bm{s}_{k,t},\bm{x}_{p,t})
-    =
-    (\bm{q}_{k,t}^{\mathrm{data}})^\top(\bm{k}_{p,t}^{\mathrm{data}}).
+    P \;=\;\{1,\ldots,N_K\},
     \]
-    For concurrency (latents within the same \(t\)),
+    so \(\bm{v}_c = \bm{q}_c\) is the \(c\)-th query, and \(\bm{v}_p = \bm{k}_p\) is the \(p\)-th key.  Suppose we have learnable weight matrices \(\bm{W}^Q,\bm{W}^K \in \mathbb{R}^{d \times d}\).  Then
     \[
-    \bm{q}_{k,t}^{\mathrm{slot}}=\bm{W}_{k}^{Q,\mathrm{slot}}\bm{s}_{k,t}, 
+    \bm{q}_c 
+    \;=\;
+    \bm{W}^Q\bm{x}^Q_c,
     \quad
-    \bm{k}_{k',t}^{\mathrm{slot}}=\bm{W}_{k'}^{K,\mathrm{slot}}\bm{s}_{k',t},
-    \quad
-    \mathrm{sim}^{\mathrm{slot}}(\bm{s}_{k,t},\bm{s}_{k',t})
-    =
-    (\bm{q}_{k,t}^{\mathrm{slot}})^\top(\bm{k}_{k',t}^{\mathrm{slot}}).
+    \bm{k}_p 
+    \;=\;
+    \bm{W}^K\bm{x}^K_p,
     \]
-    For temporal attention of slot \(k\) across time,
+    where \(\bm{x}^Q_c\) is the raw \(c\)-th query token and \(\bm{x}^K_p\) the raw \(p\)-th key token.
+    
+    \paragraph{Similarity function.}
     \[
-    \bm{q}_{k,t}^{\mathrm{time}}=\bm{W}_{k}^{Q,\mathrm{time}}\bm{s}_{k,t}, 
-    \quad
-    \bm{k}_{k,t'}^{\mathrm{time}}=\bm{W}_{k}^{K,\mathrm{time}}\bm{s}_{k,t'},
-    \quad
-    \mathrm{sim}^{\mathrm{time}}(\bm{s}_{k,t},\bm{s}_{k,t'})
-    =
-    (\bm{q}_{k,t}^{\mathrm{time}})^\top(\bm{k}_{k,t'}^{\mathrm{time}}).
+    \mathrm{sim}\bigl(\bm{q}_c, \bm{k}_p\bigr)
+    \;=\;
+    \bm{q}_c^\top \bm{k}_p.
     \]
-    All these matrices \(\bm{W}\) are learnable model parameters.
     
-    \paragraph{Gradient Updates.}
-    Each latent \(\bm{s}_{k,t}\) appears in \emph{three} child-energy terms (data, concurrency, time) and also as a \emph{parent} in the concurrency and time energies for \emph{others}:
-    \[
-    -\frac{\partial E^{\mathrm{Full}}}{\partial \bm{s}_{k,t}}
-    =
-    -\frac{\partial E^{\mathrm{data}}}{\partial \bm{s}_{k,t}}
-    \;-\;
-    \frac{\partial E^{\mathrm{concurrent}}}{\partial \bm{s}_{k,t}}
-    \;-\;
-    \frac{\partial E^{\mathrm{time}}}{\partial \bm{s}_{k,t}}.
-    \]
-    Below is a schematic decomposition (focusing on the child side plus parent side).  Let
-    \[
-        \alpha_{(k,t)\to (p,t)}^{\mathrm{data}}
-        =
-        \mathrm{softmax}_p\!\bigl(\mathrm{sim}^{\mathrm{data}}(\bm{s}_{k,t},\bm{x}_{p,t})\bigr),
-        \]
-        \[
-        \alpha_{(k,t)\to (k',t)}^{\mathrm{slot}}
-        =
-        \mathrm{softmax}_{k'}\!\bigl(\mathrm{sim}^{\mathrm{slot}}(\bm{s}_{k,t},\bm{s}_{k',t})\bigr),
-        \]
-        \[
-        \alpha_{(k,t)\to (k,t')}^{\mathrm{time}}
-        =
-        \mathrm{softmax}_{t'}\!\bigl(\mathrm{sim}^{\mathrm{time}}(\bm{s}_{k,t},\bm{s}_{k,t'})\bigr).
-        \]
-        
-    Then, for the \emph{child side} of \(\bm{s}_{k,t}\) in each energy, we get a sum over its parents weighted by \(\alpha\).  In concurrency and time, \(\bm{s}_{k,t}\) can also act as a \emph{parent} for other latents \(\bm{s}_{k',t}\) or \(\bm{s}_{k,t'}\), yielding an additional sum over children \((k',t)\) or \((k,t')\) that attend \(\bm{s}_{k,t}\).  Combining these yields a final gradient of the form:
-    \[
-        -\frac{\partial E^{\mathrm{Full}}}{\partial \bm{s}_{k,t}}
-        =
-        \underbrace{
-        \sum_{p=1}^N
-        \alpha_{(k,t)\to (p,t)}^{\mathrm{data}}
-        \;\bm{W}_{k}^{Q,\mathrm{data}\top}\,\bm{W}^{K,\mathrm{data}}\,\bm{x}_{p,t}
-        }_{\text{(latents attending data)}}
-        \]
-        \[
-        \quad+\;
-        \underbrace{
-        \sum_{\substack{k'=1 \\ k'\neq k}}^K
-        \alpha_{(k,t)\to (k',t)}^{\mathrm{slot}}
-        \;\bm{W}_{k}^{Q,\mathrm{slot}\top}\,\bm{W}_{k'}^{K,\mathrm{slot}}\,\bm{s}_{k',t}
-        \;+\;
-        \sum_{\substack{k'=1 \\ k'\neq k}}^K
-        \alpha_{(k',t)\to (k,t)}^{\mathrm{slot}}
-        \;\bm{W}_{k'}^{K,\mathrm{slot}\top}\,\bm{W}_{k}^{Q,\mathrm{slot}}\,\bm{s}_{k',t}
-        }_{\text{(two-way concurrency: child side + parent side)}}
-        \]
-        \[
-        \quad+\;
-        \underbrace{
-        \sum_{t'<t}
-        \alpha_{(k,t)\to (k,t')}^{\mathrm{time}}
-        \;\bm{W}_{k}^{Q,\mathrm{time}\top}\,\bm{W}_{k}^{K,\mathrm{time}}\,\bm{s}_{k,t'}
-        \;+\;
-        \sum_{t''>t}
-        \alpha_{(k,t'')\to (k,t)}^{\mathrm{time}}
-        \;\bm{W}_{k}^{K,\mathrm{time}\top}\,\bm{W}_{k}^{Q,\mathrm{time}}\,\bm{s}_{k,t''}
-        }_{\text{(temporal: child side for $t$ and parent side for $\{t''>t\}$)}}.
-        \]
-        
-    This final expression shows how \(\bm{s}_{k,t}\) collects gradients from (i) its data “parents,” (ii) concurrency interactions at the same time step, and (iii) temporal interactions with its own past or future (if allowed).  In a purely causal model, we can omit the \(\sum_{t''>t}\) term for parent-side time attention.
+    \paragraph{Energy.}
+    \begin{equation}
+    E^{\mathrm{Cross}}\!\Bigl(\{\bm{q}_c\}, \{\bm{k}_p\}\Bigr)
+    \;=\;
+    -\sum_{c=1}^{N_Q}
+    \ln \Bigl(\sum_{p=1}^{N_K}
+    \exp\bigl(\bm{q}_c^\top\,\bm{k}_p\bigr)\Bigr).
+    \end{equation}
     
-    \paragraph{Remark (Full Version).}
-    We can generalize to let each latent \(\bm{s}_{k,t}\) attend \emph{all} data features and \emph{all} slot latents at \emph{any} time.  This merges the three energies into a single large log-sum-exp, imposing direct competition among data, concurrency, and temporal parents, but increases complexity to \(\mathcal{O}((N + K)\,T)^2\).  The above factorization typically suffices and keeps each family of interactions (latent--data, concurrency, time) more interpretable.
+    \paragraph{Gradients.}
+    \begin{equation}
+    -\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{q}_c}
+    \;=\;
+    \sum_{p=1}^{N_K}
+    \text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
+    \bm{k}_p.
+    \end{equation}
+    \begin{equation}
+    -\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{k}_p}
+    \;=\;
+    \sum_{c=1}^{N_Q}
+    \text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
+    \bm{q}_c.
+    \end{equation}
+    When mapping back to the raw tokens \(\bm{x}^Q_c\) or \(\bm{x}^K_p\), chain-rule multiplies by \(\bm{W}^Q\) or \(\bm{W}^K\), respectively.
     
-    
-
 
 
 
@@ -953,3 +1108,6 @@ Here, we collect the explicit partial derivatives of \(\mathrm{sim}\) for each m
 
 
 \end{document}
+
+
+
