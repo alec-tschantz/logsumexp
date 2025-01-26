@@ -494,9 +494,69 @@ We can generalize to let each latent \(\bm{s}_{k,t}\) attend \emph{all} data fea
     \bm{q}_c.
     \end{equation}
     When mapping back to the raw tokens \(\bm{x}^Q_c\) or \(\bm{x}^K_p\), chain-rule multiplies by \(\bm{W}^Q\) or \(\bm{W}^K\), respectively.
+
+\section{Spatiotemporal Switching Attention}
+
+\paragraph{Setup.} 
+We consider a single variable \(\bm{x}_t \in \mathbb{R}^D\) at the current time step \(t\), influenced by \(T\) past states \(\{\bm{x}_{t'} : t' < t\}\) and governed by a set of \(M\) linear dynamical systems (LDS), where each system \(m \in \{1, \dots, M\}\) defines a transition model. The system choice is informed by both the past states and the current state via a combined energy function.
+
+\paragraph{Energy.}
+The energy function combines causal self-attention over past states with a similarity measure for the LDS dynamics. Specifically, the energy is defined as:
+\[
+E(\bm{x}_t) = -\ln \sum_{t' < t} \sum_{m=1}^M \exp \Big( \underbrace{\mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'})}_{\text{Causal self-attention}} + \underbrace{\mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t)}_{\text{LDS dynamics}} \Big),
+\]
+where:
+\begin{itemize}
+    \item \(\mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'}) = \big(\bm{W}^Q \bm{x}_t\big)^\top \big(\bm{W}^K \bm{x}_{t'}\big)\) is the similarity score between the current state \(\bm{x}_t\) and a past state \(\bm{x}_{t'}\), weighted by learnable query and key matrices \(\bm{W}^Q\) and \(\bm{W}^K\).
+    \item \(\mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t) = -\frac{1}{2} \|\bm{x}_t - \bm{f}_m(\bm{x}_{t'})\|^2\) represents the similarity under the \(m\)-th LDS transformation, where \(\bm{f}_m(\bm{x}_{t'})\) defines the transformation associated with component \(m\). For simplicity, \(\bm{f}_m(\bm{x}_{t'}) = \bm{W}_m \bm{x}_{t'}\), where \(\bm{W}_m \in \mathbb{R}^{D \times D}\) is a learnable matrix.
+\end{itemize}
+
+\paragraph{Softmax Weights.}
+The attention weights over the combined past states and LDS components are:
+\[
+\alpha_{t',m} = \frac{\exp \Big( \mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'}) + \mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t) \Big)}{\sum_{t'' < t} \sum_{m=1}^M \exp \Big( \mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t''}) + \mathrm{sim}_m(\bm{x}_{t''}, \bm{x}_t) \Big)}.
+\]
+
+\paragraph{Gradient of the Energy.}
+To compute the gradient of the energy with respect to \(\bm{x}_t\), we first compute the derivative of the similarity terms:
+\begin{align*}
+\frac{\partial}{\partial \bm{x}_t} \mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'}) &= \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'}, \\
+\frac{\partial}{\partial \bm{x}_t} \mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t) &= \bm{f}_m(\bm{x}_{t'}) - \bm{x}_t.
+\end{align*}
+
+Using the chain rule, the gradient of the energy becomes:
+\[
+\frac{\partial E}{\partial \bm{x}_t} = -\sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \frac{\partial}{\partial \bm{x}_t} \mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'}) + \frac{\partial}{\partial \bm{x}_t} \mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t) \Big).
+\]
+
+Substituting the derivatives:
+\[
+\frac{\partial E}{\partial \bm{x}_t} = -\sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'} + \bm{f}_m(\bm{x}_{t'}) - \bm{x}_t \Big).
+\]
+
+Rearranging terms:
+\[
+\frac{\partial E}{\partial \bm{x}_t} = -\bm{x}_t \sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} + \sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'} + \bm{f}_m(\bm{x}_{t'}) \Big).
+\]
+
+Since \(\sum_{t',m} \alpha_{t',m} = 1\), the first term simplifies to \(-\bm{x}_t\), resulting in:
+\[
+\frac{\partial E}{\partial \bm{x}_t} = -\bm{x}_t + \sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'} + \bm{f}_m(\bm{x}_{t'}) \Big).
+\]
+
+\paragraph{Update Rule.}
+The negative gradient provides the update rule for \(\bm{x}_t\):
+\[
+-\frac{\partial E}{\partial \bm{x}_t} = \bm{x}_t - \sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'} + \bm{f}_m(\bm{x}_{t'}) \Big).
+\]
+
+This update integrates the attention mechanism (via \(\bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'}\)) with the LDS transitions (via \(\bm{f}_m(\bm{x}_{t'})\)), weighted by the joint attention-LDS scores \(\alpha_{t',m}\).
+
+
+
+
+
     
-
-
 
 \section{Predictive coding}
 
