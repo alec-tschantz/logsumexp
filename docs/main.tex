@@ -438,59 +438,130 @@ Thus \(\bm{x}_{k,t}^{(l)}\) is influenced only by its own past \(\bm{x}_{k,t'}^{
 We can generalize to let each latent \(\bm{s}_{k,t}\) attend \emph{all} data features and \emph{all} slot latents at \emph{any} time.  This merges the three energies into a single large log-sum-exp, imposing direct competition among data, concurrency, and temporal parents, but increases complexity to \(\mathcal{O}((N + K)\,T)^2\). 
 
 
-\section{Dynamic Attention Mixtures}
+\section{Dynamic Mixture Attention}
 
-\paragraph{Setup.} 
-We consider a single variable \(\bm{x} \in \mathbb{R}^D\) at the current time step, which is influenced by \(K\) other entities, indexed by \(k \in \{1, \dots, K\}\). These entities may represent:
-(i) previous states of the same variable across time (temporal parents), or 
-(ii) other variables or slots at the same time step (concurrent parents). 
-The influence of these \(K\) entities determines the value of \(\bm{y} \in \mathbb{R}^D\), where \(\bm{x} \to \bm{y}\) evolves through \(K\) modes or parameterized transformations. Switching between these modes is governed by an attention mechanism over the \(K\) entities.
+\paragraph{Setup.}
+We consider a time series of observations \(\{\bm{x}_t\}_{t=1}^T\), where each \(\bm{x}_t \in \mathbb{R}^d\). The transition from \(\bm{x}_t\) to \(\bm{x}_{t+1}\) is governed by \(K\) distinct dynamical modes, each parameterized by \(\{\bm{A}_k, \bm{b}_k\}\) for \(k \in \{1, \dots, K\}\). Additionally, each \(\bm{x}_t\) can attend to \(K\) \emph{parents} \(\{\bm{z}_k\}_{k=1}^K\), which may represent previous states \(\bm{x}_{t'}\) for \(t' < t\), concurrent slots at the same time step, or variables from other layers. This setup generalizes various attention mechanisms, including causal self-attention and inter-layer attention.
 
-\paragraph{Energy Function.} 
-The energy function combines self-attention over parents and compatibility with dynamical modes. It is defined as:
-\begin{equation}
-    E(\bm{x}, \bm{y}) = -\ln \sum_{k=1}^K \exp\left( \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) + \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) \right),
-\end{equation}
-where
-\begin{align}
-    \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) &= \big(\bm{W}^Q \bm{x}\big)^\top \big(\bm{W}^K \bm{x}_k\big), \\
-    \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) &= -\frac{1}{2} \|\bm{y} - V_k \bm{x}\|^2.
-\end{align}
-The term \(\mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k)\) measures the similarity between the current state \(\bm{x}\) and the \(k\)-th parent through learnable query and key matrices \(\bm{W}^Q\) and \(\bm{W}^K\). The term \(\mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k)\) evaluates the compatibility of the \(k\)-th mode \(V_k \in \mathbb{R}^{D \times D}\) in predicting \(\bm{y}\) from \(\bm{x}\).
+\paragraph{Similarity Functions.}
+We define two similarity measures for each mode \(k\). The first captures the attention-based similarity between the current state \(\bm{x}_t\) and its parent \(\bm{z}_k\) using learnable projection matrices \(\bm{W}^Q\) and \(\bm{W}^K\):
+\[
+\mathrm{sim}_{\mathrm{parents}}\bigl(\bm{x}_t, \bm{z}_k\bigr)
+\;=\;
+\bigl(\bm{W}^Q\,\bm{x}_t\bigr)^\top\,\bigl(\bm{W}^K\,\bm{z}_k\bigr).
+\]
+The second similarity term models the dynamical compatibility between \(\bm{x}_t\) and \(\bm{x}_{t+1}\) under mode \(k\):
+\[
+\mathrm{sim}_{\mathrm{dynamics}}\bigl(\bm{x}_t, \bm{x}_{t+1}; \bm{A}_k, \bm{b}_k\bigr)
+\;=\;
+-\tfrac{1}{2}\,\bigl\|\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr\|^2.
+\]
 
-\paragraph{Attention Weights.}
-The attention weights, which determine the influence of each parent and its associated dynamics mode \(V_k\), are defined as:
+\paragraph{Energy.}
+Each transition \(\bm{x}_t \to \bm{x}_{t+1}\) is associated with \(K\) modes, each combining attention to a parent and a dynamical transformation. The energy is defined as:
 \begin{equation}
-    \alpha_k = \frac{\exp\left( \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) + \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) \right)}{\sum_{j=1}^K \exp\left( \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_j) + \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_j) \right)}.
+E^{\mathrm{DMA}}\!\Bigl(\{\bm{x}_t\}, \{\bm{A}_k,\bm{b}_k\}, \{\bm{z}_k\}\Bigr)
+\;=\;
+-\sum_{t=1}^{T-1}
+\ln \Biggl(
+\sum_{k=1}^K
+\exp\biggl(
+\mathrm{sim}_{\mathrm{parents}}\bigl(\bm{x}_t, \bm{z}_k\bigr)
+\;+\;
+\mathrm{sim}_{\mathrm{dynamics}}\bigl(\bm{x}_t, \bm{x}_{t+1}; \bm{A}_k, \bm{b}_k\bigr)
+\biggr)
+\Biggr).
 \end{equation}
+This formulation allows each mode \(k\) to simultaneously attend to a parent \(\bm{z}_k\) and explain the transition through \(\bm{A}_k\) and \(\bm{b}_k\).
 
-\paragraph{Gradient with respect to \(\bm{y}\).} 
-The derivative of the energy function with respect to \(\bm{y}\) is:
-\begin{equation}
-    \frac{\partial E}{\partial \bm{y}} = -\sum_{k=1}^K \alpha_k \frac{\partial}{\partial \bm{y}} \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k).
-\end{equation}
-\begin{equation}
-    \frac{\partial}{\partial \bm{y}} \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) = \bm{y} - V_k \bm{x},
-\end{equation}
-\begin{equation}
-    \frac{\partial E}{\partial \bm{y}} = -\sum_{k=1}^K \alpha_k (\bm{y} - V_k \bm{x}).
-\end{equation}
+\paragraph{Gradients.}
+Define the attention weights as:
+\[
+\alpha_{t,k}
+\;=\;
+\text{softmax}_k\Bigl(
+\mathrm{sim}_{\mathrm{parents}}\bigl(\bm{x}_t, \bm{z}_k\bigr)
+\;+\;
+\mathrm{sim}_{\mathrm{dynamics}}\bigl(\bm{x}_t, \bm{x}_{t+1}; \bm{A}_k, \bm{b}_k\bigr)
+\Bigr).
+\]
+Then,
+\[
+-\frac{\partial E^{\mathrm{DMA}}}{\partial \bm{x}_{t+1}}
+=
+\sum_{k=1}^K
+\alpha_{t,k}
+\Biggl[
+\underbrace{
+\frac{\partial}{\partial \bm{x}_{t+1}}
+\mathrm{sim}_{\mathrm{parents}}(\bm{x}_t, \bm{z}_k)
+}_{\;=\,0}
+\;+\;
+\underbrace{
+\frac{\partial}{\partial \bm{x}_{t+1}}
+\mathrm{sim}_{\mathrm{dynamics}}(\bm{x}_t, \bm{x}_{t+1}; \bm{A}_k, \bm{b}_k)
+}_{\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k}
+\Biggr]
+\]
+\[
+=
+\sum_{k=1}^K
+\alpha_{t,k}
+\bigl[\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr].
+\]
 
-\paragraph{Gradient with respect to \(\bm{x}\).} 
-The derivative of the energy function with respect to \(\bm{x}\) is:
-\begin{equation}
-    \frac{\partial E}{\partial \bm{x}} = -\sum_{k=1}^K \alpha_k \left( \frac{\partial}{\partial \bm{x}} \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) + \frac{\partial}{\partial \bm{x}} \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) \right).
-\end{equation}
-\begin{equation}
-    \frac{\partial}{\partial \bm{x}} \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) = W_Q W_K^\top \bm{x}_k,
-\end{equation}
-\begin{equation}
-    \frac{\partial}{\partial \bm{x}} \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) = V_k^\top (\bm{y} - V_k \bm{x}).
-\end{equation}
-\begin{equation}
-    \frac{\partial E}{\partial \bm{x}} = -\sum_{k=1}^K \alpha_k \left( W_Q W_K^\top \bm{x}_k + V_k^\top (\bm{y} - V_k \bm{x}) \right).
-\end{equation}
+\[
+-\frac{\partial E^{\mathrm{DMA}}}{\partial \bm{x}_t}
+=
+\sum_{k=1}^K
+\alpha_{t,k}
+\Biggl[
+\underbrace{
+\frac{\partial}{\partial \bm{x}_t}
+\mathrm{sim}_{\mathrm{parents}}(\bm{x}_t, \bm{z}_k)
+}_{\bm{W}^Q{}^\top\,\bm{W}^K\,\bm{z}_k}
+\;+\;
+\underbrace{
+\frac{\partial}{\partial \bm{x}_t}
+\mathrm{sim}_{\mathrm{dynamics}}(\bm{x}_t, \bm{x}_{t+1}; \bm{A}_k, \bm{b}_k)
+}_{-\,\bm{A}_k^\top\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr)}
+\Biggr]
+\]
+\[
+=
+\sum_{k=1}^K
+\alpha_{t,k}
+\Bigl[
+\bm{W}^Q{}^\top\,\bm{W}^K\,\bm{z}_k
+\;-\;
+\bm{A}_k^\top\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr)
+\Bigr].
+\]
 
+Additionally, gradients with respect to the parameters \(\bm{A}_k\) and \(\bm{b}_k\) are given by:
+\[
+-\frac{\partial E^{\mathrm{DMA}}}{\partial \bm{A}_k}
+=
+\sum_{t=1}^{T-1}
+\alpha_{t,k}\,\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr)\,\bm{x}_t^\top,
+\]
+\[
+-\frac{\partial E^{\mathrm{DMA}}}{\partial \bm{b}_k}
+=
+\sum_{t=1}^{T-1}
+\alpha_{t,k}\,\bigl(\bm{x}_{t+1} - \bm{A}_k\,\bm{x}_t - \bm{b}_k\bigr).
+\]
+
+\paragraph{Fixed Point for \(\bm{x}_{t+1}\).}
+Setting the gradient with respect to \(\bm{x}_{t+1}\) to zero yields the fixed point equation:
+\[
+\bm{x}_{t+1}
+\;=\;
+\sum_{k=1}^K
+\alpha_{t,k}\,
+\bigl(\bm{A}_k\,\bm{x}_t + \bm{b}_k\bigr),
+\]
+where \(\alpha_{t,k}\) itself depends on \(\bm{x}_{t+1}\). This equation must be solved iteratively, typically via fixed-point iteration or gradient-based optimization methods to achieve consistency. 
 
 
 \section{Predictive coding}
