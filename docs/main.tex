@@ -407,10 +407,7 @@ The gradient with respect to \(\bm{x}_{k,t}^{(l)}\) is:
 The first term captures the influence of \(\bm{x}_{k,t}^{(l)}\) as a parent, aggregating the contributions from other slots \(\bm{x}_{k',t}^{(l)}\) it explains, weighted by \(\mathrm{softmax}_{k'}(\bm{A}_{k,k'})\). The second term reflects \(\bm{x}_{k,t}^{(l)}\)'s role as a child, being explained by other slots \(\bm{x}_{k',t}^{(l)}\), weighted by \(\mathrm{softmax}_{k}(\bm{A}_{k',k})\).
 
 
-
-
-
-\section{Temporal:}
+\paragraph{Temporal:}
 
 \paragraph{Setup.}
 We define a similarity matrix \(\bm{A}_{t,t'}\) representing the interaction between a slot \(\bm{x}_{k,t}^{(l)}\) at time \(t\) and its past representation \(\bm{x}_{k,t'}^{(l)}\) at time \(t'\), for \(t'<t\):
@@ -440,123 +437,61 @@ Thus \(\bm{x}_{k,t}^{(l)}\) is influenced only by its own past \(\bm{x}_{k,t'}^{
 \paragraph{Remark (Full Version).}
 We can generalize to let each latent \(\bm{s}_{k,t}\) attend \emph{all} data features and \emph{all} slot latents at \emph{any} time.  This merges the three energies into a single large log-sum-exp, imposing direct competition among data, concurrency, and temporal parents, but increases complexity to \(\mathcal{O}((N + K)\,T)^2\). 
 
-    
-    \section{Cross Attention}
 
-    \paragraph{Setup.}
-    We have a set of child vectors (queries) \(\bm{Q}\in\mathbb{R}^{d\times N_Q}\) and a set of parent vectors (keys) \(\bm{K}\in\mathbb{R}^{d\times N_K}\).  Let
-    \[
-    C \;=\;\{1,\ldots,N_Q\}, 
-    \quad
-    P \;=\;\{1,\ldots,N_K\},
-    \]
-    so \(\bm{v}_c = \bm{q}_c\) is the \(c\)-th query, and \(\bm{v}_p = \bm{k}_p\) is the \(p\)-th key.  Suppose we have learnable weight matrices \(\bm{W}^Q,\bm{W}^K \in \mathbb{R}^{d \times d}\).  Then
-    \[
-    \bm{q}_c 
-    \;=\;
-    \bm{W}^Q\bm{x}^Q_c,
-    \quad
-    \bm{k}_p 
-    \;=\;
-    \bm{W}^K\bm{x}^K_p,
-    \]
-    where \(\bm{x}^Q_c\) is the raw \(c\)-th query token and \(\bm{x}^K_p\) the raw \(p\)-th key token.
-    
-    \paragraph{Similarity function.}
-    \[
-    \mathrm{sim}\bigl(\bm{q}_c, \bm{k}_p\bigr)
-    \;=\;
-    \bm{q}_c^\top \bm{k}_p.
-    \]
-    
-    \paragraph{Energy.}
-    \begin{equation}
-    E^{\mathrm{Cross}}\!\Bigl(\{\bm{q}_c\}, \{\bm{k}_p\}\Bigr)
-    \;=\;
-    -\sum_{c=1}^{N_Q}
-    \ln \Bigl(\sum_{p=1}^{N_K}
-    \exp\bigl(\bm{q}_c^\top\,\bm{k}_p\bigr)\Bigr).
-    \end{equation}
-    
-    \paragraph{Gradients.}
-    \begin{equation}
-    -\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{q}_c}
-    \;=\;
-    \sum_{p=1}^{N_K}
-    \text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
-    \bm{k}_p.
-    \end{equation}
-    \begin{equation}
-    -\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{k}_p}
-    \;=\;
-    \sum_{c=1}^{N_Q}
-    \text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
-    \bm{q}_c.
-    \end{equation}
-    When mapping back to the raw tokens \(\bm{x}^Q_c\) or \(\bm{x}^K_p\), chain-rule multiplies by \(\bm{W}^Q\) or \(\bm{W}^K\), respectively.
-
-\section{Spatiotemporal Switching Attention}
+\section{Dynamic Attention Mixtures}
 
 \paragraph{Setup.} 
-We consider a single variable \(\bm{x}_t \in \mathbb{R}^D\) at the current time step \(t\), influenced by \(T\) past states \(\{\bm{x}_{t'} : t' < t\}\) and governed by a set of \(M\) linear dynamical systems (LDS), where each system \(m \in \{1, \dots, M\}\) defines a transition model. The system choice is informed by both the past states and the current state via a combined energy function.
+We consider a single variable \(\bm{x} \in \mathbb{R}^D\) at the current time step, which is influenced by \(K\) other entities, indexed by \(k \in \{1, \dots, K\}\). These entities may represent:
+(i) previous states of the same variable across time (temporal parents), or 
+(ii) other variables or slots at the same time step (concurrent parents). 
+The influence of these \(K\) entities determines the value of \(\bm{y} \in \mathbb{R}^D\), where \(\bm{x} \to \bm{y}\) evolves through \(K\) modes or parameterized transformations. Switching between these modes is governed by an attention mechanism over the \(K\) entities.
 
-\paragraph{Energy.}
-The energy function combines causal self-attention over past states with a similarity measure for the LDS dynamics. Specifically, the energy is defined as:
-\[
-E(\bm{x}_t) = -\ln \sum_{t' < t} \sum_{m=1}^M \exp \Big( \underbrace{\mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'})}_{\text{Causal self-attention}} + \underbrace{\mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t)}_{\text{LDS dynamics}} \Big),
-\]
-where:
-\begin{itemize}
-    \item \(\mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'}) = \big(\bm{W}^Q \bm{x}_t\big)^\top \big(\bm{W}^K \bm{x}_{t'}\big)\) is the similarity score between the current state \(\bm{x}_t\) and a past state \(\bm{x}_{t'}\), weighted by learnable query and key matrices \(\bm{W}^Q\) and \(\bm{W}^K\).
-    \item \(\mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t) = -\frac{1}{2} \|\bm{x}_t - \bm{f}_m(\bm{x}_{t'})\|^2\) represents the similarity under the \(m\)-th LDS transformation, where \(\bm{f}_m(\bm{x}_{t'})\) defines the transformation associated with component \(m\). For simplicity, \(\bm{f}_m(\bm{x}_{t'}) = \bm{W}_m \bm{x}_{t'}\), where \(\bm{W}_m \in \mathbb{R}^{D \times D}\) is a learnable matrix.
-\end{itemize}
+\paragraph{Energy Function.} 
+The energy function combines self-attention over parents and compatibility with dynamical modes. It is defined as:
+\begin{equation}
+    E(\bm{x}, \bm{y}) = -\ln \sum_{k=1}^K \exp\left( \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) + \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) \right),
+\end{equation}
+where
+\begin{align}
+    \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) &= \big(\bm{W}^Q \bm{x}\big)^\top \big(\bm{W}^K \bm{x}_k\big), \\
+    \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) &= -\frac{1}{2} \|\bm{y} - V_k \bm{x}\|^2.
+\end{align}
+The term \(\mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k)\) measures the similarity between the current state \(\bm{x}\) and the \(k\)-th parent through learnable query and key matrices \(\bm{W}^Q\) and \(\bm{W}^K\). The term \(\mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k)\) evaluates the compatibility of the \(k\)-th mode \(V_k \in \mathbb{R}^{D \times D}\) in predicting \(\bm{y}\) from \(\bm{x}\).
 
-\paragraph{Softmax Weights.}
-The attention weights over the combined past states and LDS components are:
-\[
-\alpha_{t',m} = \frac{\exp \Big( \mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'}) + \mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t) \Big)}{\sum_{t'' < t} \sum_{m=1}^M \exp \Big( \mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t''}) + \mathrm{sim}_m(\bm{x}_{t''}, \bm{x}_t) \Big)}.
-\]
+\paragraph{Attention Weights.}
+The attention weights, which determine the influence of each parent and its associated dynamics mode \(V_k\), are defined as:
+\begin{equation}
+    \alpha_k = \frac{\exp\left( \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) + \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) \right)}{\sum_{j=1}^K \exp\left( \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_j) + \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_j) \right)}.
+\end{equation}
 
-\paragraph{Gradient of the Energy.}
-To compute the gradient of the energy with respect to \(\bm{x}_t\), we first compute the derivative of the similarity terms:
-\begin{align*}
-\frac{\partial}{\partial \bm{x}_t} \mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'}) &= \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'}, \\
-\frac{\partial}{\partial \bm{x}_t} \mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t) &= \bm{f}_m(\bm{x}_{t'}) - \bm{x}_t.
-\end{align*}
+\paragraph{Gradient with respect to \(\bm{y}\).} 
+The derivative of the energy function with respect to \(\bm{y}\) is:
+\begin{equation}
+    \frac{\partial E}{\partial \bm{y}} = -\sum_{k=1}^K \alpha_k \frac{\partial}{\partial \bm{y}} \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k).
+\end{equation}
+\begin{equation}
+    \frac{\partial}{\partial \bm{y}} \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) = \bm{y} - V_k \bm{x},
+\end{equation}
+\begin{equation}
+    \frac{\partial E}{\partial \bm{y}} = -\sum_{k=1}^K \alpha_k (\bm{y} - V_k \bm{x}).
+\end{equation}
 
-Using the chain rule, the gradient of the energy becomes:
-\[
-\frac{\partial E}{\partial \bm{x}_t} = -\sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \frac{\partial}{\partial \bm{x}_t} \mathrm{sim}_{\text{att}}(\bm{x}_t, \bm{x}_{t'}) + \frac{\partial}{\partial \bm{x}_t} \mathrm{sim}_m(\bm{x}_{t'}, \bm{x}_t) \Big).
-\]
-
-Substituting the derivatives:
-\[
-\frac{\partial E}{\partial \bm{x}_t} = -\sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'} + \bm{f}_m(\bm{x}_{t'}) - \bm{x}_t \Big).
-\]
-
-Rearranging terms:
-\[
-\frac{\partial E}{\partial \bm{x}_t} = -\bm{x}_t \sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} + \sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'} + \bm{f}_m(\bm{x}_{t'}) \Big).
-\]
-
-Since \(\sum_{t',m} \alpha_{t',m} = 1\), the first term simplifies to \(-\bm{x}_t\), resulting in:
-\[
-\frac{\partial E}{\partial \bm{x}_t} = -\bm{x}_t + \sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'} + \bm{f}_m(\bm{x}_{t'}) \Big).
-\]
-
-\paragraph{Update Rule.}
-The negative gradient provides the update rule for \(\bm{x}_t\):
-\[
--\frac{\partial E}{\partial \bm{x}_t} = \bm{x}_t - \sum_{t' < t} \sum_{m=1}^M \alpha_{t',m} \Big( \bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'} + \bm{f}_m(\bm{x}_{t'}) \Big).
-\]
-
-This update integrates the attention mechanism (via \(\bm{W}^Q \bm{W}^{K\top} \bm{x}_{t'}\)) with the LDS transitions (via \(\bm{f}_m(\bm{x}_{t'})\)), weighted by the joint attention-LDS scores \(\alpha_{t',m}\).
+\paragraph{Gradient with respect to \(\bm{x}\).} 
+The derivative of the energy function with respect to \(\bm{x}\) is:
+\begin{equation}
+    \frac{\partial E}{\partial \bm{x}} = -\sum_{k=1}^K \alpha_k \left( \frac{\partial}{\partial \bm{x}} \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) + \frac{\partial}{\partial \bm{x}} \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) \right).
+\end{equation}
+\begin{equation}
+    \frac{\partial}{\partial \bm{x}} \mathrm{sim}_{\text{parents}}(\bm{x}, \bm{x}_k) = W_Q W_K^\top \bm{x}_k,
+\end{equation}
+\begin{equation}
+    \frac{\partial}{\partial \bm{x}} \mathrm{sim}_{\text{dynamics}}(\bm{x}, \bm{y}; V_k) = V_k^\top (\bm{y} - V_k \bm{x}).
+\end{equation}
+\begin{equation}
+    \frac{\partial E}{\partial \bm{x}} = -\sum_{k=1}^K \alpha_k \left( W_Q W_K^\top \bm{x}_k + V_k^\top (\bm{y} - V_k \bm{x}) \right).
+\end{equation}
 
 
-
-
-
-    
 
 \section{Predictive coding}
 
@@ -607,6 +542,61 @@ E^{\mathrm{PC}}\!\Bigl(\{\bm{x}_i\}, \{\bm{\mu}_k\}\Bigr)
 \;\bigl(\bm{x}_i - f_\phi(\bm{\mu}_k)\bigr).
 \]
 Here, \(\tfrac{\partial f_\phi(\bm{\mu}_k)}{\partial \bm{\mu}_k}\) is the \(d\times d\) Jacobian (or more general shape if \(\bm{\mu}_k\) and \(f_\phi(\bm{\mu}_k)\) differ in dimension). 
+
+ 
+\section{Cross Attention}
+
+\paragraph{Setup.}
+We have a set of child vectors (queries) \(\bm{Q}\in\mathbb{R}^{d\times N_Q}\) and a set of parent vectors (keys) \(\bm{K}\in\mathbb{R}^{d\times N_K}\).  Let
+\[
+C \;=\;\{1,\ldots,N_Q\}, 
+\quad
+P \;=\;\{1,\ldots,N_K\},
+\]
+so \(\bm{v}_c = \bm{q}_c\) is the \(c\)-th query, and \(\bm{v}_p = \bm{k}_p\) is the \(p\)-th key.  Suppose we have learnable weight matrices \(\bm{W}^Q,\bm{W}^K \in \mathbb{R}^{d \times d}\).  Then
+\[
+\bm{q}_c 
+\;=\;
+\bm{W}^Q\bm{x}^Q_c,
+\quad
+\bm{k}_p 
+\;=\;
+\bm{W}^K\bm{x}^K_p,
+\]
+where \(\bm{x}^Q_c\) is the raw \(c\)-th query token and \(\bm{x}^K_p\) the raw \(p\)-th key token.
+
+\paragraph{Similarity function.}
+\[
+\mathrm{sim}\bigl(\bm{q}_c, \bm{k}_p\bigr)
+\;=\;
+\bm{q}_c^\top \bm{k}_p.
+\]
+
+\paragraph{Energy.}
+\begin{equation}
+E^{\mathrm{Cross}}\!\Bigl(\{\bm{q}_c\}, \{\bm{k}_p\}\Bigr)
+\;=\;
+-\sum_{c=1}^{N_Q}
+\ln \Bigl(\sum_{p=1}^{N_K}
+\exp\bigl(\bm{q}_c^\top\,\bm{k}_p\bigr)\Bigr).
+\end{equation}
+
+\paragraph{Gradients.}
+\begin{equation}
+-\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{q}_c}
+\;=\;
+\sum_{p=1}^{N_K}
+\text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
+\bm{k}_p.
+\end{equation}
+\begin{equation}
+-\frac{\partial E^{\mathrm{Cross}}}{\partial \bm{k}_p}
+\;=\;
+\sum_{c=1}^{N_Q}
+\text{softmax}_{p}\!\Bigl(\bm{q}_c^\top \bm{k}_p \Bigr)\,
+\bm{q}_c.
+\end{equation}
+When mapping back to the raw tokens \(\bm{x}^Q_c\) or \(\bm{x}^K_p\), chain-rule multiplies by \(\bm{W}^Q\) or \(\bm{W}^K\), respectively.
 
 
 \section{Switching Linear Dynamical System}
