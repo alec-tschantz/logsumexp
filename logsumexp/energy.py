@@ -1,7 +1,7 @@
 from typing import Any, Callable, List, Tuple, Dict
 
 import equinox as eqx
-from jax import Array, nn, numpy as jnp, random as jr, jit
+from jax import Array, numpy as jnp, random as jr, jit, nn
 
 
 @eqx.filter_jit
@@ -20,6 +20,24 @@ class Energy(eqx.Module):
     def __call__(self, *args: Any) -> float:
         m = self.measure(*args)
         return -jnp.sum(nn.logsumexp(m, axis=1))
+
+    def attention(self, *args) -> Array:
+        m = self.measure(*args)
+        return nn.softmax(m, axis=1)
+
+
+class LinearMixture(Energy):
+    W: Array
+    b: Array
+
+    def __init__(self, D_in: int, D_out: int, key: jr.PRNGKey) -> None:
+        k1, k2 = jr.split(key, 2)
+        self.W = jr.normal(k1, (D_in, D_out))
+        self.b = jr.normal(k2, (D_out,))
+
+    def measure(self, x: Array, y: Array) -> Array:
+        y_pred = jnp.einsum("mij,bi->bmj", self.W, x) + self.b
+        return -0.5 * jnp.sum((y[:, None, :] - y_pred) ** 2, axis=-1)
 
 
 class CrossAttention(Energy):
@@ -87,7 +105,7 @@ class GaussianMixture(Energy):
         return -0.5 * (dist + logdet + const)
 
 
-class PredictiveCoding(Energy):
+class NonLinearMixture(Energy):
     W: Array
     b: Array
     func: Callable

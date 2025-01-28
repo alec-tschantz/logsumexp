@@ -1,11 +1,12 @@
 from .energy import (
     Energy,
+    LinearMixture,
+    NonLinearMixture,
+    GaussianMixture,
     CrossAttention,
-    Hopfield,
     SlotAttention,
     SelfAttention,
-    GaussianMixture,
-    PredictiveCoding,
+    Hopfield,
     LayerNorm,
     energy,
 )
