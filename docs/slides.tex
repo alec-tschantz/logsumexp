@@ -1,4 +1,5 @@
 \documentclass{beamer}
+
 \usepackage{amsmath,amssymb,bm}
 \usepackage{graphicx}
 \usepackage{natbib}
@@ -9,88 +10,1159 @@
 
 \begin{document}
 
+%======================================================
 \begin{frame}
-    \titlepage
+  \titlepage
+\end{frame}
+%======================================================
+
+%======================================================
+\begin{frame}{Overview}
+\tableofcontents
 \end{frame}
 
+\section{$\log \sum \exp$ framework}
+
+%======================================================
 \begin{frame}{$\log \sum \exp$ energy}
+    \large
+    We consider energy functions that map a set of parents \(\{\bm{v}_p \in \mathbb{R}^{d_p} : p \in P\}\) to a set of children \(\{\bm{v}_c \in \mathbb{R}^{d_c} : c \in C\}\). 
+    
+    \bigskip
+
+    Each energy function defines a similarity function (with parameters $\theta$) that measures agreement between a parent and child vector:
+    \[
+    \mathrm{sim}_\theta(\bm{v}_c, \bm{v}_p) : \mathbb{R}^{d_c} \times \mathbb{R}^{d_p} \to \mathbb{R}.
+    \]
+    
+    \bigskip
+
+    The $\log \sum \exp$ energy function is then given by:
+    \[
+    E(\{\bm{v}_c\}, \{\bm{v}_p\}, \theta) = -\sum_{c \in C} \ln \Bigl(\sum_{p \in P} \exp\bigl(\mathrm{sim}_\theta(\bm{v}_c, \bm{v}_p)\bigr)\Bigr).
+    \]
+\end{frame}
+    
+%======================================================
+
+%======================================================
+\begin{frame}{$\log \sum \exp$ derivatives}
+    We define \emph{attention} as:
+    \[
+    \alpha_{c,p} = \text{softmax}_p\bigl(\mathrm{sim}_\theta(\bm{v}_c, \bm{v}_p)\bigr) = \frac{\exp\bigl(\mathrm{sim}_\theta(\bm{v}_c, \bm{v}_p)\bigr)}{\sum_{p' \in P} \exp\bigl(\mathrm{sim}_\theta(\bm{v}_c, \bm{v}_{p'})\bigr)}.
+    \]
+    
+    The derivatives with are then given by:
+    \[
+    \begin{aligned}
+        -\frac{\partial E}{\partial \bm{v}_c} &= \sum_{p \in P} \alpha_{c,p} \frac{\partial \mathrm{sim}_\theta(\bm{v}_c, \bm{v}_p)}{\partial \bm{v}_c}, \\
+        -\frac{\partial E}{\partial \bm{v}_p} &= \sum_{c \in C} \alpha_{c,p} \frac{\partial \mathrm{sim}_\theta(\bm{v}_c, \bm{v}_p)}{\partial \bm{v}_p}, \\
+        -\frac{\partial E}{\partial \theta} &= \sum_{c \in C} \sum_{p \in P} \alpha_{c,p} \frac{\partial \mathrm{sim}_\theta(\bm{v}_c, \bm{v}_p)}{\partial \theta}.
+    \end{aligned}
+    \]
+\end{frame}
+%======================================================
+
+%======================================================
+\begin{frame}{$\log \sum \exp$ derivatives}
+    The gradient of the energy function can be interpreted as an \emph{expected value} over a discrete distribution $\alpha_{c,p} = P(p \mid c)$:
+
+    \begin{equation}
+    \begin{aligned}
+        -\frac{\partial E}{\partial \bm{v}_c} &= \mathbb{E}_{p \sim P(p \mid c)} \left[ \frac{\partial \mathrm{sim}_\theta(\bm{v}_c, \bm{v}_p)}{\partial \bm{v}_c} \right]
+    \end{aligned}
+    \end{equation}
+
+    \bigskip
+
+    While the child gradient is an exact expectation under $P(p \mid c)$, the parent gradient does not correspond exactly to an expectation under $P(c \mid p)$; it is instead proportional to it through Bayes rule. 
+\end{frame}
+%======================================================
+
+
+%======================================================
+\begin{frame}{$\log \sum \exp$ graphical models}
+    We consider a single set of \(N\) nodes \(\bm{v} = \{\bm{v}_i : i \in \{1, 2, \ldots, N\}\}\), where each node \(\bm{v}_i \in \mathbb{R}^{d_i}\), and \(M\) energy functions \(\{E_m : m \in \{1, 2, \ldots, M\}\}\).
+
+    \bigskip
+    
+    Each \(E_m\) has a similairtiy function $\mathrm{sim}_{m}(\cdot)$ with parameters \(\theta_m\) and defines a subset of nodes acting as \emph{children} \(C_m \subseteq \{1, 2, \ldots, N\}\) and a subset acting as \emph{parents} \(P_m \subseteq \{1, 2, \ldots, N\}\), which may overlap.
+    \[
+    E_m\bigl(\{\bm{v}_c\}, \{\bm{v}_p\}, \theta_m\bigr) = -\sum_{c \in C_m} \ln \Bigl(\sum_{p \in P_m} \exp\bigl(\mathrm{sim}_{m}(\bm{v}_c, \bm{v}_p)\bigr)\Bigr).
+    \]
+    The full energy is the sum over all energy functions:
+    \[
+    E(\{\bm{v}_i\}, \{\theta_m\}) = \sum_{m=1}^{M} E_m\bigl(\{\bm{v}_c\}, \{\bm{v}_p\}, \theta_m\bigr).
+    \]
+
+\end{frame}
+%======================================================
+
+
+
+%======================================================
+\begin{frame}{$\log \sum \exp$ expectation maximisation}
+    \bigskip
+
+    \textbf{Expectation Step:} 
     \begin{itemize}
-        \item Define energy function 
-        \item Define derivative as softmax (for parent and child)
-        \item Softmax paper?
+        \item Perform gradient descent on each \(\bm{v}_i\) to find the optimal latent states:
+        \[
+        \bm{v}_i^* = \arg \min_{\bm{v}_i} E(\{\bm{v}_i\}, \{\theta_m\}).
+        \]
     \end{itemize}
-\end{frame}
 
-\begin{frame}{$\log \sum \exp$ graph}
+    \bigskip
+
+    \textbf{Maximisation Step:} 
     \begin{itemize}
-        \item Gradient descent on hidden states
-        \item Gradient descent on parameters of \texttt{sim}
+        \item Given the updated \(\bm{v}_i^*\), take a gradient step on each \(\theta_m\):
+        \[
+        \theta_m = \theta_m - \eta \frac{\partial E}{\partial \theta_m} \Big|_{\bm{v}_i^*}.
+        \]
     \end{itemize}
+
+\end{frame}
+%======================================================
+
+
+
+%======================================================
+\begin{frame}[fragile]{$\log \sum \exp$ framework}
+
+\begin{verbatim}
+class Energy:
+    def similarity(self, *args):
+        raise NotImplementedError
+
+    def __call__(self, *args):
+        # energy function
+        sim_matrix = self.similarity(*args) 
+        return -sum(logsumexp(sim_matrix, axis=1))
+
+dx = grad(energy)(x, y)
+\end{verbatim}
+\end{frame}
+%======================================================
+
+
+%======================================================
+\section{$\log \sum \exp$ examples}
+
+%======================================================
+\begin{frame}{Gaussian Mixture Model}
+
+    We define a set of child nodes \(\{\bm{x}_i\}_{i=1}^N\) and parent means \(\{\bm{\mu}_k\}_{k=1}^K\). The covariance matrices \(\{\bm{\Sigma}_k\}_{k=1}^K\) are treated as parameters \(\theta_k = \bm{\Sigma}_k\) (note that we could have also included means in the similarity parameters).
+    
+    \bigskip
+    
+    The similarity function is given by:
+    \[
+    \mathrm{sim}_k\bigl(\bm{x}_i,\bm{\mu}_k\bigr)
+    \;=\;
+    -\tfrac{1}{2}
+    (\bm{x}_i - \bm{\mu}_k)^\top \bm{\Sigma}_k^{-1}(\bm{x}_i - \bm{\mu}_k).
+    \]
+    
+    The energy function is:
+    \[
+    E^{\mathrm{GMM}}
+    =
+    -\sum_{i=1}^N
+    \ln \Bigl(\sum_{k=1}^K
+    \exp\bigl(\mathrm{sim}_k(\bm{x}_i,\bm{\mu}_k)\bigr)\Bigr).
+    \]
+
+    The similarity function can be interpreted as the log probability of \(\bm{x}_i\) under the conditional Gaussian distribution \(\mathcal{N}(\bm{\mu}_k, \bm{\Sigma}_k)\), up to a normalization constant.
+
+\end{frame}
+%======================================================
+
+    
+
+%======================================================
+\begin{frame}{Gaussian Mixture Model}
+
+The gradient for $\bm{\mu}_k$ is given by:
+
+\[
+-\frac{\partial \bm{E}^{\mathrm{GMM}}}{\partial \bm{\mu}_k}
+\;=\;
+\sum_{i=1}^N 
+\underbrace{\mathrm{softmax}_{k} \bigl(\mathrm{sim}(\bm{x}_i,\bm{\mu}_k)\bigr)}_{\alpha_{i,k}}
+\;\bm{\Sigma}_k^{-1}(\bm{x}_i - \bm{\mu}_k).
+\]
+
+Solving for zero gives the fixed point update for \(\bm{\mu}_k\):
+
+\[
+\bm{\mu}_k
+\;=\;
+\frac{\sum_{i=1}^N \alpha_{i,k}\,\bm{x}_i}
+     {\sum_{i=1}^N \alpha_{i,k}}.
+\]
+\end{frame}
+%======================================================
+
+% %======================================================
+% \begin{frame}{Categorical Mixture Model}
+
+%     We define a discrete child variable \(\bm{x} \in \{1, \dots, D\}\) and a single discrete parent variable \(\bm{z} \in \{1, \dots, K\}\), governed by categorical parameters \(\bm{\theta} \in \mathbb{R}^{K \times D}\):
+    
+%     \[
+%     \mathrm{sim}_{\bm{\theta}}(\bm{x}, \bm{z}) 
+%     = 
+%     \ln \theta_{\bm{z}, \bm{x}},
+%     \quad
+%     E^{\mathrm{Cat}}
+%     = 
+%     -\ln \Bigl(\sum_{\bm{z}=1}^K \theta_{\bm{z}, \bm{x}}\Bigr).
+%     \]
+    
+%     The attention distribution (softmax) is
+%     \[
+%     \alpha_{\bm{z}}
+%     =
+%     \frac{\theta_{\bm{z}, \bm{x}}}{\sum_{\bm{z}'} \theta_{\bm{z}', \bm{x}}}.
+%     \]
+    
+%     The gradient w.r.t.\ the discrete index \(\bm{z}\) can be viewed as:
+%     \[
+%     -\frac{\partial E}{\partial \bm{z}}
+%     =
+%     \sum_{d=1}^D 
+%     \alpha_{\bm{z}} 
+%     \,\frac{\partial \ln \theta_{\bm{z}, d}}{\partial \bm{z}}
+%     \]
+%     \end{frame}
+% %======================================================
+    
+
+    
+    
+
+%======================================================
+\begin{frame}{Hopfield Attention}
+    We define a set of child nodes \(\{\bm{x}_i\}_{i=1}^N\), each \(\bm{x}_i \in \mathbb{R}^d\), and a set of parent memory vectors \(\{\bm{m}_\mu\}_{\mu=1}^K\), each \(\bm{m}_\mu \in \mathbb{R}^d\).
+
+    \bigskip
+
+    The energy function is given by:
+    \[
+    \mathrm{sim}\bigl(\bm{x}_i, \bm{m}_\mu\bigr)
+    =
+    \bm{x}_i^\top \bm{m}_\mu.
+    \]
+    \[
+    E^{\mathrm{Hopfield}}
+    =
+    -\sum_{i=1}^N
+    \ln \Bigl(\sum_{\mu=1}^K \exp\bigl(\bm{x}_i^\top \bm{m}_\mu\bigr)\Bigr).
+    \]
+
+    The gradients are:
+    \[
+        \alpha_{i,\mu} = \mathrm{softmax}_\mu\!\bigl(\bm{x}_i^\top \bm{m}_\mu\bigr).
+    \]
+    
+    \[
+    -\frac{\partial E}{\partial \bm{m}_\mu}
+    =
+    \sum_{i=1}^N \alpha_{i,\mu}\,\bm{x}_i,
+    \quad
+    -\frac{\partial E}{\partial \bm{x}_i}
+    =
+    \sum_{\mu=1}^K \alpha_{i,\mu}\,\bm{m}_\mu,
+    \]
+
+\end{frame}
+%======================================================
+
+
+%======================================================
+\begin{frame}{Slot Attention}
+    We define a set of child (token) nodes \(\{\bm{x}_j\}_{j=1}^N\) and a set of parent (slot) nodes \(\{\bm{\mu}_i\}_{i=1}^S\). The parameters $\theta$ consist of two projection matrices \(\bm{W}_K\) and \(\bm{W}_Q\).
+
+    The energy function is:
+    \[
+    \mathrm{sim}\bigl(\bm{x}_j,\bm{\mu}_i\bigr)
+    =
+    (\bm{W}_K \bm{x}_j)^\top (\bm{W}_Q \bm{\mu}_i).
+    \]
+    \[
+    E^{\mathrm{Slot}}
+    =
+    -\sum_{j=1}^N
+    \ln \Bigl(\sum_{i=1}^S
+    \exp\bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\bigr)\Bigr).
+    \]
+
+    The gradients are:
+    \[
+    \alpha_{j,i} = \mathrm{softmax}_i\bigl(\mathrm{sim}(\bm{x}_j,\bm{\mu}_i)\bigr).
+    \]
+    \[
+    -\frac{\partial E}{\partial \bm{\mu}_i}
+    =
+    \sum_{j=1}^N
+    \alpha_{j,i}\,\bm{W}_Q^\top \bm{W}_K\,\bm{x}_j,
+    \quad
+    -\frac{\partial E}{\partial \bm{x}_j}
+    =
+    \sum_{i=1}^S
+    \alpha_{j,i}\,\bm{W}_K^\top \bm{W}_Q\,\bm{\mu}_i.
+    \]
+
+\end{frame}
+%======================================================
+
+
+
+%======================================================
+\begin{frame}{Self-Attention}
+    We define a set of nodes \(\{\bm{x}_i\}_{i=1}^N\), where each \(\bm{x}_i\) serves as both a child (query) and a parent (key). The parameters \(\theta\) consist of projection matrices \(\bm{W}^Q\) and \(\bm{W}^K\), forming:
+    \[
+    \bm{q}_i = \bm{W}^Q \bm{x}_i,
+    \quad
+    \bm{k}_i = \bm{W}^K \bm{x}_i.
+    \]
+
+    The energy function is:
+    \[
+    \mathrm{sim}\bigl(\bm{x}_c,\bm{x}_p\bigr)
+    =
+    \bm{q}_c^\top \bm{k}_p.
+    \]
+    \[
+    E^{\mathrm{SA}}
+    =
+    -\sum_{c=1}^N
+    \ln \Bigl(\sum_{p=1}^N \exp(\bm{q}_c^\top \bm{k}_p)\Bigr).
+    \]
+
+    The gradients are:
+    \[
+    \alpha_{c,p} = \mathrm{softmax}_p\bigl(\bm{q}_c^\top \bm{k}_p\bigr).
+    \]
+    \[
+    -\frac{\partial E}{\partial \bm{x}_i}
+    =
+    \underbrace{\sum_{p=1}^N \alpha_{i,p} \bm{W}^Q{}^\top \bm{W}^K \bm{x}_p}_{\text{Child side}}
+    \;+\;
+    \underbrace{\sum_{c=1}^N \alpha_{c,i} \bm{W}^K{}^\top \bm{W}^Q \bm{x}_c}_{\text{Parent side }}.
+    \]
+
+\end{frame}
+%======================================================
+
+
+
+%======================================================
+\begin{frame}{Linear Mixture Model}
+
+    We define a set of child nodes \(\{\bm{x}_i\}_{i=1}^N\) and a set of parent nodes \(\{\bm{z}_k\}_{k=1}^K\). The parameters \(\bm{\theta} = \{(\bm{A}_k, \bm{b}_k, \bm{\Sigma}_k)\}_{k=1}^K\) define a linear mapping:
+    \[
+    \bm{x}_i = \bm{A}_k \bm{z}_k + \bm{b}_k + \bm{\epsilon}, \quad \bm{\epsilon} \sim \mathcal{N}(\bm{0}, \bm{\Sigma}_k).
+    \]
+
+    \bigskip
+
+    The energy function is:
+    \[
+    \mathrm{sim}_k(\bm{x}_i, \bm{z}_k)
+    =
+    -\tfrac{1}{2} (\bm{x}_i - \bm{A}_k \bm{z}_k - \bm{b}_k)^\top \bm{\Sigma}_k^{-1} (\bm{x}_i - \bm{A}_k \bm{z}_k - \bm{b}_k).
+    \]
+    \[
+    E^{\mathrm{LM}}
+    =
+    -\sum_{i=1}^{N}
+    \ln \Bigl(\sum_{k=1}^K
+    \exp\bigl(\mathrm{sim}_k(\bm{x}_i, \bm{z}_k)\bigr)\Bigr).
+    \]
+
+    Note this is the energy function for the switching linear dynamical system (SLDS) model, and our simple latent attention (SLA) model.
+
+\end{frame}
+%======================================================
+
+%======================================================
+\begin{frame}{Linear Mixture Model}
+
+    The attention weights are:
+    \[
+    \alpha_{i,k} = \mathrm{softmax}_k\bigl(\mathrm{sim}_k(\bm{x}_i, \bm{z}_k)\bigr).
+    \]
+
+    The gradient w.r.t.\ \(\bm{x}_i\) is:
+    \[
+    -\frac{\partial E}{\partial \bm{x}_i}
+    =
+    \sum_{k=1}^{K} \alpha_{i,k} \bm{\Sigma}_k^{-1} (\bm{x}_i - \bm{A}_k \bm{z}_k - \bm{b}_k).
+    \]
+
+    The fixed-point update for \(\bm{x}_i\) is:
+    \[
+    \bm{x}_i^* =
+    \sum_{k=1}^K \alpha_{i,k}\,\bigl(\bm{A}_k \bm{z}_k + \bm{b}_k\bigr).
+    \]
+
+\end{frame}
+%======================================================
+
+
+%======================================================
+\begin{frame}{Non-Linear Mixture Model}
+
+    We define a set of child nodes \(\{\bm{x}_i\}_{i=1}^N\) and a set of parent nodes \(\{\bm{z}_k\}_{k=1}^K\). The parameters \(\bm{\theta} = \{\bm{A}_k, \bm{b}_k, \sigma\}\) define a non-linear mapping:
+    \[
+    f(\bm{z}_k) = \sigma(\bm{A}_k \bm{z}_k + \bm{b}_k),
+    \]
+    where \(\sigma(\cdot)\) is a non-linearity.
+
+    \bigskip
+
+    The similarity function is:
+    \[
+    \mathrm{sim}_k(\bm{x}_i, \bm{z}_k)
+    =
+    -\tfrac{1}{2} \|\bm{x}_i - f(\bm{z}_k)\|^2.
+    \]
+
+    The energy function is:
+    \[
+    E^{\mathrm{NL}}
+    =
+    -\sum_{i=1}^{N}
+    \ln \Bigl(\sum_{k=1}^K
+    \exp\bigl(\mathrm{sim}_k(\bm{x}_i, \bm{z}_k)\bigr)\Bigr).
+    \]
+
+\end{frame}
+%======================================================
+
+%======================================================
+\begin{frame}{Non-Linear Mixture Model: Gradients}
+
+    The attention weights are:
+    \[
+    \alpha_{i,k} = \mathrm{softmax}_k\bigl(\mathrm{sim}_k(\bm{x}_i, \bm{z}_k)\bigr).
+    \]
+
+    The gradient w.r.t.\ \(\bm{x}_i\) is:
+    \[
+    -\frac{\partial E}{\partial \bm{x}_i}
+    =
+    \sum_{k=1}^{K} \alpha_{i,k} \,(\bm{x}_i - f(\bm{z}_k)).
+    \]
+
+    The gradient w.r.t.\ \(\bm{z}_k\) is:
+    \[
+    -\frac{\partial E}{\partial \bm{z}_k}
+    =
+    \sum_{i=1}^{N} \alpha_{i,k} \,\frac{\partial f(\bm{z}_k)}{\partial \bm{z}_k} \,(\bm{x}_i - f(\bm{z}_k)).
+    \]
+
+    Note these are these are predictive coding updates, weighted by the attention \(\alpha_{i,k}\).
+
+\end{frame}
+%======================================================
+
+%======================================================
+\begin{frame}{Kronecker $\log \sum \exp$}
+
+    We define a single set of child nodes \(\{\bm{x}_i\}_{i=1}^N\) and \emph{two} sets of parents:
+    \[
+    \{\bm{z}_k\}_{k=1}^K, 
+    \quad 
+    \{\bm{u}_\ell\}_{\ell=1}^L.
+    \]
+     We combine these factors \emph{multiplicatively} via a \emph{Kronecker} structure, giving a single $\log \sum \exp$ term over all pairs \((k,\ell)\).
+    
+    \bigskip
+    
+    \textbf{Similarity:} For each child \(\bm{x}_i\) and each parent pair \((k,\ell)\), define
+    \[
+    \mathrm{sim}\bigl(\bm{x}_i; \bm{z}_k, \bm{u}_\ell\bigr)
+    =
+    \mathrm{sim}_z(\bm{x}_i, \bm{z}_k) 
+    \;+\;
+    \mathrm{sim}_u(\bm{x}_i, \bm{u}_\ell),
+    \]
+ 
+    \[
+    E^{\mathrm{Kron}}
+    =
+    -\sum_{i=1}^N 
+    \ln \Bigl(
+    \sum_{k=1}^K \sum_{\ell=1}^L
+    \exp\bigl(\mathrm{sim}(\bm{x}_i;\bm{z}_k,\bm{u}_\ell)\bigr)
+    \Bigr).
+    \]
+    
+    \end{frame}
+    %======================================================
+    
+    %======================================================
+%======================================================
+\begin{frame}{Kronecker $\log \sum \exp$}
+
+    The resulting attention is now a \emph{joint} softmax over all parent pairs:
+    \[
+    \alpha_{i,k,\ell} 
+    =
+    \mathrm{softmax}_{k,\ell}\bigl(\mathrm{sim}(\bm{x}_i; \bm{z}_k,\bm{u}_\ell)\bigr)
+    \]
+    \[
+    =
+    \frac{\exp\bigl(\mathrm{sim}(\bm{x}_i;\bm{z}_k,\bm{u}_\ell)\bigr)}
+         {\sum_{k'=1}^K \sum_{\ell'=1}^L \exp\bigl(\mathrm{sim}(\bm{x}_i;\bm{z}_{k'},\bm{u}_{\ell'})\bigr)}.
+    \]
+    
+    \bigskip
+    
+    \textbf{Gradients:}  
+    For a child \(\bm{x}_i\),
+    \[
+    -\frac{\partial E}{\partial \bm{x}_i}
+    =
+    \sum_{k=1}^K \sum_{\ell=1}^L 
+    \alpha_{i,k,\ell}\,
+    \frac{\partial}{\partial \bm{x}_i}
+    \mathrm{sim}(\bm{x}_i; \bm{z}_k,\bm{u}_\ell).
+    \]
+    
+    Similarly, for a parent \(\bm{z}_k\):
+    \[
+    -\frac{\partial E}{\partial \bm{z}_k}
+    =
+    \sum_{i=1}^N \sum_{\ell=1}^L
+    \alpha_{i,k,\ell}\,
+    \frac{\partial}{\partial \bm{z}_k}
+    \mathrm{sim}_z(\bm{x}_i, \bm{z}_k),
+    \]
+    
+    \end{frame}
+    %======================================================
+    
+    %======================================================
+
+    %======================================================
+%======================================================
+\begin{frame}{Kronecker $\log \sum \exp$ (Discrete Case)}
+
+    \textbf{Setup:}  
+    We define a single discrete child variable \(\bm{x} \in \{1, \dots, D\}\) and two discrete parent variables:
+    \[
+    \bm{z} \in \{1, \dots, K\}, 
+    \quad 
+    \bm{u} \in \{1, \dots, L\}.
+    \]
+    The parameters \(\bm{\theta} \in \mathbb{R}^{D \times K \times L}\) represent a joint categorical distribution.
+        
+    \textbf{Energy}  
+    We define a single similarity function that depends on all three variables:
+    \[
+    \mathrm{sim}(x, z, u)
+    =
+    \ln \theta_{x, z, u}.
+    \]
+    
+    \[
+        E^{\mathrm{Kron}}
+        =
+        - \sum_{i=1}^{N}
+        \ln \Bigl(
+        \sum_{k=1}^{K} \sum_{\ell=1}^{L}
+        \exp\bigl(\mathrm{sim}(x_i, z_k, u_\ell)\bigr)
+        \Bigr).
+        \]
+    \end{frame}
+    %======================================================
+    
+    
+%======================================================
+\begin{frame}{Kronecker $\log \sum \exp$ (Discrete Case)}
+
+
+    \textbf{Tensor Attention:}  
+    This induces a joint softmax over both parent variables:
+    \[
+    \alpha_{i,k,\ell} =
+    \frac{\exp\bigl(\mathrm{sim}(x_i, z_k, u_\ell)\bigr)}
+         {\sum_{k'=1}^{K} \sum_{\ell'=1}^{L} \exp\bigl(\mathrm{sim}(x_i, z_{k'}, u_{\ell'})\bigr)}.
+    \]
+
+    \bigskip
+    
+    \textbf{Interpretation:}  
+    \begin{itemize}
+        \item Parent variables \((z_k, u_\ell)\) conspire to jointly explain child variables \(x_i\).
+        \item The attention \(\alpha_{i,k,\ell}\) generalizes categorical mixture models to factorial structures.
+    \end{itemize}
+    
+    \end{frame}
+    %======================================================
+    
+
+%======================================================
+%======================================================
+\begin{frame}{Multi $\log \sum \exp$}
+
+    We define a set of child nodes \(\{\bm{x}_i\}_{i=1}^N\) and a set of parent nodes \(\{\bm{z}_k\}_{k=1}^K\). Each parent \(k\) is associated with multiple similarity terms, indexed by different factors.
+    
+    \bigskip
+    
+    \textbf{Similarity functions:}  
+    Each similarity term contributes independently to the energy function:
+    \[
+    \mathrm{sim}_1(\bm{x}_i, \bm{z}_k), \quad
+    \mathrm{sim}_2(\bm{x}_i, \bm{z}_k), \quad \dots, \quad
+    \mathrm{sim}_M(\bm{x}_i, \bm{z}_k).
+    \]
+    
+    \bigskip
+    
+    \textbf{Energy function:}
+    \[
+    E^{\mathrm{Multi}}
+    =
+    -\sum_{i=1}^N
+    \ln \Bigl(\sum_{k=1}^K
+    \exp\bigl(\textstyle\sum_{m=1}^M \mathrm{sim}_m(\bm{x}_i, \bm{z}_k)\bigr)\Bigr).
+    \]
+    
+    Here, all similarity terms are summed before the softmax, leading to a \emph{joint} mixture model over multiple factors.
+    
+    \end{frame}
+    %======================================================
+    
+    %======================================================
+    \begin{frame}{Multi $\log \sum \exp$}
+    
+    The resulting attention weight is:
+    \[
+    \alpha_{i,k} 
+    =
+    \mathrm{softmax}_{k} \Bigl(\textstyle\sum_{m=1}^M \mathrm{sim}_m(\bm{x}_i, \bm{z}_k)\Bigr).
+    \]
+    
+    With gradients: 
+     \[
+    -\frac{\partial E}{\partial \bm{x}_i}
+    =
+    \sum_{k=1}^K 
+    \alpha_{i,k}\,
+    \sum_{m=1}^M
+    \frac{\partial}{\partial \bm{x}_i}
+    \mathrm{sim}_m(\bm{x}_i, \bm{z}_k).
+    \]
+    
+    \bigskip
+        \[
+    -\frac{\partial E}{\partial \bm{z}_k}
+    =
+    \sum_{i=1}^N 
+    \alpha_{i,k}\,
+    \sum_{m=1}^M
+    \frac{\partial}{\partial \bm{z}_k}
+    \mathrm{sim}_m(\bm{x}_i, \bm{z}_k).
+    \]
+
+    This formulation is useful when multiple similarties contribute to the similarity between a child and parent.
+    
+    \end{frame}
+%======================================================
+    
+%======================================================
+
+\section{$\log \sum \exp$ graphical models}
+
+%======================================================
+\begin{frame}{Block-slot Attention}
+
+    \textbf{Setup:}  
+    We define a set of child nodes \(\{\bm{x}_i\}_{i=1}^N\), a set of slot parent nodes \(\{\bm{z}_k\}_{k=1}^K\), and a set of memory parent nodes \(\{\bm{m}_\mu\}_{\mu=1}^M\). The parameters \(\bm{\theta} = \{\bm{W}_K, \bm{W}_Q\}\) consist of projection matrices.
+    
+    \bigskip
+    
+    \textbf{Energy:}  
+    Each child \(\bm{x}_i\) is compared to slot parents \(\bm{z}_k\) and memory parents \(\bm{m}_\mu\):
+    \[
+    \mathrm{sim}_z(\bm{x}_i, \bm{z}_k) = (\bm{W}_K \bm{x}_i)^\top (\bm{W}_Q \bm{z}_k),
+    \]
+    \[
+    \mathrm{sim}_m(\bm{x}_i, \bm{m}_\mu) = \bm{x}_i^\top \bm{m}_\mu.
+    \]
+    \[
+    E^{\mathrm{BlockSlot}}
+    = -\sum_{i=1}^N 
+    \ln \left(
+    \sum_{k=1}^K \exp\bigl(\mathrm{sim}_z(\bm{x}_i, \bm{z}_k)\bigr)
+    \right)  
+    \]
+    \[
+    \quad -\sum_{i=1}^N 
+    \ln \left(
+    \sum_{\mu=1}^M \exp\bigl(\mathrm{sim}_m(\bm{x}_i, \bm{m}_\mu)\bigr)
+    \right).
+    \]
+    
+\end{frame}
+%======================================================
+
+%======================================================
+\begin{frame}{Energy Transformer}
+
+    \textbf{Setup:}  
+    We define a set of nodes \(\{\bm{x}_i\}_{i=1}^N\) and a set of memory nodes \(\{\bm{m}_\mu\}_{\mu=1}^M\). The parameters \(\bm{\theta} = \{\bm{W}^Q, \bm{W}^K\}\) consist of projection matrices for queries and keys.
+    
+    \bigskip
+    
+    \textbf{Energy:}  
+    Each node \(\bm{x}_i\) attends to itself (self-attention) and to memory nodes \(\bm{m}_\mu\) (Hopfield attention):
+    \[
+    \mathrm{sim}_{\text{self}}(\bm{x}_i, \bm{x}_j) = (\bm{W}^Q \bm{x}_i)^\top (\bm{W}^K \bm{x}_j),
+    \]
+    \[
+    \mathrm{sim}_{\text{memory}}(\bm{x}_i, \bm{m}_\mu) = \bm{x}_i^\top \bm{m}_\mu.
+    \]
+    \[
+    E^{\mathrm{ET}}
+    =
+    -\sum_{i=1}^N 
+    \ln \left(
+    \sum_{j=1}^N \exp\bigl(\mathrm{sim}_{\text{self}}(\bm{x}_i, \bm{x}_j)\bigr)
+    \right)  
+    \]
+    \[
+    \quad -\sum_{i=1}^N 
+    \ln \left(
+    \sum_{\mu=1}^M \exp\bigl(\mathrm{sim}_{\text{memory}}(\bm{x}_i, \bm{m}_\mu)\bigr)
+    \right).
+    \]
+    
+\end{frame}
+%======================================================
+
+    
+%======================================================
+\begin{frame}{Atari Model}
+
+    \textbf{Setup:}  
+    We define a sequence of child nodes \(\{\bm{x}_t\}_{t=1}^T\), a sequence of latent parent nodes \(\{\bm{z}_t\}_{t=1}^T\), and a set of mode parameters \(\{\bm{A}_k, \bm{b}_k, \bm{\Sigma}_k\}_{k=1}^K\). The parameters \(\bm{\theta} = \{\bm{A}_k, \bm{b}_k, \bm{\Sigma}_k\}\) define the mappings.
+
+    \bigskip
+    
+    \textbf{Similarity Functions:}  
+    The child \(\bm{x}_t\) is assigned to a mixture component \(\bm{z}_t\) using:
+    \[
+    \mathrm{sim}_{\text{GMM}}(\bm{x}_t, \bm{z}_t)
+    =
+    -\tfrac{1}{2} (\bm{x}_t - \bm{z}_t)^\top \bm{\Sigma}_k^{-1} (\bm{x}_t - \bm{z}_t).
+    \]
+    The latent child \(\bm{z}_{t}\) is explained by a linear mixture model:
+    \[
+    \mathrm{sim}_{\text{LM}}(\bm{z}_t, \bm{z}_{t-1})
+    =
+    -\tfrac{1}{2} (\bm{z}_t - \bm{A}_k \bm{z}_{t-1} - \bm{b}_k)^\top \bm{\Sigma}_k^{-1} (\bm{z}_t - \bm{A}_k \bm{z}_{t-1} - \bm{b}_k).
+    \]
+
 \end{frame}
 
-\begin{frame}{Gaussian mixture model}
-    % Content goes here
-\end{frame}
+%======================================================
+\begin{frame}{Atari Model}
 
-\begin{frame}{Categorical mixture mdodel}
-    % Content goes here
-\end{frame}
+    \textbf{Energy:}  
+    \[
+    E^{\mathrm{Atari}}
+    = -\sum_{t=1}^{T} 
+    \ln \left(
+    \sum_{k=1}^K \exp\bigl(\mathrm{sim}_{\text{GMM}}(\bm{x}_t, \bm{z}_t)\bigr)
+    \right)
+    \]
+    \[
+    \quad -\sum_{t=1}^{T-1} 
+    \ln \left(
+    \sum_{k=1}^K \exp\bigl(\mathrm{sim}_{\text{LM}}(\bm{z}_t, \bm{z}_{t-1})\bigr)
+    \right).
+    \]
 
-\begin{frame}{Hopfield attention}
-    % Content goes here
-\end{frame}
+    The gradient for the latent parent \(\bm{z}_t\) combines both responsibilities:
+    \[
+    -\frac{\partial E}{\partial \bm{z}_t}
+    =
+    \sum_{k=1}^K \alpha_{t,k} \,\bm{\Sigma}_k^{-1} (\bm{x}_t - \bm{z}_t)
+    + \sum_{k=1}^K \beta_{t,k} \,\bm{\Sigma}_k^{-1} (\bm{z}_t - \bm{A}_k \bm{z}_{t-1} - \bm{b}_k).
+    \]
 
-\begin{frame}{Slot attention}
-    % Content goes here
 \end{frame}
+%======================================================
+    
 
-\begin{frame}{Self attention}
-    % Content goes here
-\end{frame}
+\section{$\log \sum \exp$ spatio-temporal model}
 
-\begin{frame}{Linear mixture model}
-    % Content goes here
-\end{frame}
+%======================================================
+%======================================================
+\begin{frame}{Spatiotemporal Attention}
 
-\begin{frame}{Non-linear mixture model}
-   \begin{itemize}
-        \item This is just predictive coding 
-        \item Could extend $f(\cdot)$ to be a neural network
-   \end{itemize}
-\end{frame}
+    \textbf{Hierarchy:}  
+    We define a hierarchy of \(L\) layers. Each layer \(l\) contains \(K_l\) latent variables, where each variable evolves over \(T\) time steps. Concretely, let:
+    \[
+    \bm{x}_{k,t}^{(l)} \in \mathbb{R}^{D_l}
+    \]
+    denote the \(k\)-th variable (or "slot") in layer \(l\) at time \(t\), with \(D_l\)-dimensional representations. The number of variables \(K_l\) may differ across layers.
 
-\begin{frame}{Kronecker $\log \sum \exp$ energy}
-    % Content goes here
-\end{frame}
+    \bigskip
+    
+    \textbf{Structure:}
+    \begin{itemize}
+        \item \textbf{Inter-layer (vertical):} Each variable \(\bm{x}_{k,t}^{(l)}\) is influenced by variables from the layer below (\(l-1\)) at the same time \(t\).
+        \item \textbf{Intra-layer (concurrent):} Variables within the same layer \(l\) interact at each time step \(t\).
+        \item \textbf{Temporal:} Each variable \(\bm{x}_{k,t}^{(l)}\) is influenced by its own past states \(\bm{x}_{k,t'}^{(l)}\) for \(t' < t\).
+    \end{itemize}
 
-\begin{frame}{Dual $\log \sum \exp$ energy}
-    % Content goes here
 \end{frame}
+%======================================================
 
-\begin{frame}{Spatio-temporal model}
-    % Content goes here
-\end{frame}
 
-\begin{frame}{Atari model}
-    % Content goes here
+
+%======================================================
+\begin{frame}{Spatiotemporal Attention}
+
+    \textbf{Inter-layer (vertical):}
+    \[
+    \mathrm{sim}_{v}^{(l)}(\bm{x}, \bm{x}')
+    =
+    \bigl(\bm{W}_{v}^{K,(l)}\,\bm{x}\bigr)^\top
+    \bigl(\bm{W}_{v}^{Q,(l)}\,\bm{x}'\bigr).
+    \]
+
+    \textbf{Intra-layer (concurrent):}
+    \[
+    \mathrm{sim}_{c}^{(l)}(\bm{x}, \bm{x}')
+    =
+    \bigl(\bm{W}_{c}^{Q,(l)}\,\bm{x}\bigr)^\top
+    \bigl(\bm{W}_{c}^{K,(l)}\,\bm{x}'\bigr).
+    \]
+
+    \textbf{Temporal (past states):}
+    \[
+    \mathrm{sim}_{t}^{(l)}(\bm{x}, \bm{x}')
+    =
+    \bigl(\bm{W}_{t}^{Q,(l)}\,\bm{x}\bigr)^\top
+    \bigl(\bm{W}_{t}^{K,(l)}\,\bm{x}'\bigr).
+    \]
+
 \end{frame}
+%======================================================
+
+%======================================================
+\begin{frame}{Spatiotemporal Attention}
+
+    \textbf{Inter-layer Energy (Slot attentiom):}
+    \[
+    E_{v}^{(l)}
+    =
+    -\sum_{t=1}^T
+    \sum_{c=1}^{K_{l-1}}
+    \ln \Biggl(
+    \sum_{k=1}^{K_l}
+    \exp\bigl(\mathrm{sim}_{v}^{(l)}(\bm{x}_{c,t}^{(l-1)}, \bm{x}_{k,t}^{(l)})\bigr)
+    \Biggr).
+    \]
+
+    \textbf{Intra-layer Energy (Self attention):}
+    \[
+    E_{c}^{(l)}
+    =
+    -\sum_{t=1}^T
+    \sum_{k=1}^{K_l}
+    \ln \Biggl(
+    \sum_{\substack{k'=1 \\ k'\neq k}}^{K_l}
+    \exp\bigl(\mathrm{sim}_{c}^{(l)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{k',t}^{(l)})\bigr)
+    \Biggr).
+    \]
+
+    \textbf{Temporal Energy (Casual self attention):}
+    \[
+    E_{t}^{(l)}
+    =
+    -\sum_{k=1}^{K_l}
+    \sum_{t=2}^T
+    \ln \Biggl(
+    \sum_{t'<t}
+    \exp\bigl(\mathrm{sim}_{t}^{(l)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{k,t'}^{(l)})\bigr)
+    \Biggr).
+    \]
+
+\end{frame}
+%======================================================
+
+%======================================================
+\begin{frame}{Spatiotemporal Attention}
+
+    \[
+    -\frac{\partial E}{\partial \bm{x}_{k,t}^{(l)}} = 
+    \underbrace{-\frac{\partial E_{v}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}}_{\text{bottom-up}} 
+    + 
+    \underbrace{-\frac{\partial E_{v}^{(l+1)}}{\partial \bm{x}_{k,t}^{(l)}}}_{\text{top-down}} 
+    + 
+    \underbrace{-\frac{\partial E_{c}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}}_{\text{intra-layer}} 
+    + 
+    \underbrace{-\frac{\partial E_{t}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}}_{\text{temporal}}.
+    \]
+
+    \textbf{Bottom-up gradient}
+    \[
+        -\frac{\partial E_{v}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+        =
+        \sum_{c=1}^{K_{l-1}}
+        \mathrm{softmax}_{k}\bigl(\bm{A}_{c,k}\bigr)
+        \bm{W}_{v}^{Q,(l)\top} \bm{W}_{v}^{K,(l)} \bm{x}_{c,t}^{(l-1)}.
+    \]
+
+    \textbf{Top-down gradient}
+    \[
+        -\frac{\partial E_{v}^{(l+1)}}{\partial \bm{x}_{k,t}^{(l)}}
+        =
+        \sum_{p=1}^{K_{l+1}}
+        \mathrm{softmax}_{p}\bigl(\bm{A}_{k,p}\bigr)
+        \bm{W}_{v}^{K,(l+1)\top} \bm{W}_{v}^{Q,(l+1)} \bm{x}_{p,t}^{(l+1)}.
+        \]
+    
+    
+
+\end{frame}
+%======================================================
+
+%======================================================
+\begin{frame}{Spatiotemporal Attention}
+
+    \textbf{Intra-layer gradient}
+
+    \[
+    -\frac{\partial E_{c}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+    =
+    \sum_{k'\neq k}
+    \mathrm{softmax}_{k}\bigl(\bm{A}_{k',k}\bigr)
+    \bm{W}_{c}^{K,(l)\top} \bm{W}_{c}^{Q,(l)} \bm{x}_{k',t}^{(l)}
+\]
+\[
+    +
+    \sum_{k'\neq k}
+    \mathrm{softmax}_{k'}\bigl(\bm{A}_{k, k'}\bigr)
+    \bm{W}_{c}^{Q,(l)\top} \bm{W}_{c}^{K,(l)} \bm{x}_{k',t}^{(l)}.
+\]
+
+\textbf{Temporal gradient}
+\[
+-\frac{\partial E_{t}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+=
+\sum_{t'<t}
+\mathrm{softmax}_{t'}\bigl(\bm{A}_{t,t'}\bigr)\,
+\bm{W}_{t}^{Q,(l)\top}\,\bm{W}_{t}^{K,(l)}\,\bm{x}_{k,t'}^{(l)}.
+\]
+
+\textbf{Remark:} 
+By merging inter-layer, intra-layer, and temporal connections into a single large log-sum-exp term, we increase flexibility but at the cost of \(\mathcal{O}((N + K)\,T)^2\) complexity.
+
+\end{frame}
+%======================================================
+
+\section{Renormalised mixture models}
+
+%======================================================
 
 \begin{frame}{Renormalised mixture models}
-    % Content goes here
+    We define a hierarchy of \(L\) layers, each containing \(K_l\) latent variables of dimension \(D_l\), where \(K_l\) decreases with \(l\) (\(K_1 > K_2 > \dots > K_L\)). 
+
+    \bigskip
+
+    Each variable \(\bm{x}_{k,t}^{(l)}\) at layer \(l\) receives input only from a local subset of variables in layer \(l-1\), forming a \emph{receptive field}:
+    \[
+    \mathcal{R}_{k}^{(l)} \subseteq \{1, \dots, K_{l-1}\}.
+    \]
+
+    In this setting, intra-layer and temporal energy remain the same.
+
 \end{frame}
 
-\begin{frame}{Bayesian model expansion \& reduction}
-    % Content goes here
+%======================================================
+\begin{frame}{Renormalised Mixture Model}
+
+    Each variable \(\bm{x}_{k,t}^{(l)}\) at layer \(l\) is explained only by a local receptive field \(\mathcal{R}_{k}^{(l)}\) in layer \(l-1\):
+    \[
+    E_{v}^{(l)}
+    =
+    -\sum_{t=1}^{T}
+    \sum_{k=1}^{K_l}
+    \ln \Biggl(
+    \sum_{c \in \mathcal{R}_{k}^{(l)}}
+    \exp\bigl(\mathrm{sim}_{v}^{(l)}(\bm{x}_{c,t}^{(l-1)}, \bm{x}_{k,t}^{(l)})\bigr)
+    \Biggr).
+    \]
+
+    Define:  
+    \[
+    \bm{A}_{c,k} = \mathrm{sim}_{v}^{(l)}(\bm{x}_{c,t}^{(l-1)}, \bm{x}_{k,t}^{(l)}),
+    \quad
+    \bm{A}_{k,p} = \mathrm{sim}_{v}^{(l+1)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{p,t}^{(l+1)}).
+    \]
+
+    Then the bottom-up and top-down gradients are:  
+    \[
+    -\frac{\partial E_{v}^{(l)}}{\partial \bm{x}_{k,t}^{(l)}}
+    =
+    \sum_{c \in \mathcal{R}_{k}^{(l)}}
+    \mathrm{softmax}_{c}\bigl(\bm{A}_{c,k}\bigr)
+    \frac{\partial}{\partial \bm{x}_{k,t}^{(l)}}
+    \mathrm{sim}_{v}^{(l)}(\bm{x}_{c,t}^{(l-1)}, \bm{x}_{k,t}^{(l)}),
+    \]
+    \[
+    -\frac{\partial E_{v}^{(l+1)}}{\partial \bm{x}_{k,t}^{(l)}}
+    =
+    \sum_{p \in \mathcal{R}_{k}^{(l+1)}}
+    \mathrm{softmax}_{p}\bigl(\bm{A}_{k,p}\bigr)
+    \frac{\partial}{\partial \bm{x}_{k,t}^{(l)}}
+    \mathrm{sim}_{v}^{(l+1)}(\bm{x}_{k,t}^{(l)}, \bm{x}_{p,t}^{(l+1)}).
+    \]
+
+\end{frame}
+%======================================================
+
+
+%======================================================
+\begin{frame}{Bayesian model expansion}
+    If a new data point \(\bm{x}_{N+1}\) is not well explained by existing parent components, we introduce a new parent to explain it.
+
+    We evaluate the energy contribution of the new data point:
+    \[
+    E_{N+1} = -\ln \Biggl( \sum_{k=1}^{K} \exp\bigl(\mathrm{sim}(\bm{x}_{N+1}, \bm{z}_k,)\bigr) \Biggr).
+    \]
+    If \(E_{N+1} > \tau\) (for some threshold \(\tau\)), then \(\bm{x}_{N+1}\) is not sufficiently explained, and we add a new parent component \(\bm{z}_{K+1}\), where the new parent is initialized based on \(\bm{x}_{N+1}\).
+
+\end{frame}
+%======================================================
+
+
+%======================================================
+\begin{frame}{Coordinate Ascent}
+    \large
+    \textbf{Energy Function:}
+    
+    We consider an energy of the form
+    \[
+    E(\{\bm{x}_j\}, \{\bm{\mu}_i\}; \theta)
+    =
+    -\sum_{j=1}^N
+    \ln\Bigl(\sum_{i=1}^S
+    \exp\bigl(\mathrm{sim}_\theta(\bm{x}_j,\bm{\mu}_i)\bigr)\Bigr),
+    \]
+    where \(\theta\) denotes the parameters of the similarity function.
+    
+    \bigskip
+    
+    \textbf{EM Procedure:}
+    \begin{itemize}
+        \item \textbf{E-step:} Update latent variables \(\{\bm{\mu}_i\}\) given fixed \(\theta\).
+        \item \textbf{M-step:} Update parameters \(\theta\) in closed form given current slots.
+    \end{itemize}
+    \end{frame}
+    %======================================================
+    
+%======================================================
+\begin{frame}{Coordinate Ascent}
+    \large
+    \textbf{Slot Attention Example:}
+    
+    \[
+    \theta = \{\bm{W}_K,\bm{W}_Q\},
+    \quad
+    \mathrm{sim}_\theta(\bm{x}_j,\bm{\mu}_i)
+    =
+    (\bm{W}_K\bm{x}_j)^\top(\bm{W}_Q\bm{\mu}_i).
+    \]
+    
+    Define the attention matrix \(\mathbf{A}\) with entries
+    \[
+    A_{ji}
+    =
+    \mathrm{softmax}_i\!\bigl(
+    (\bm{W}_K\bm{x}_j)^\top(\bm{W}_Q\bm{\mu}_i)
+    \bigr).
+    \]
+    
+    \bigskip
+    \textbf{Goal:} Perform an \textbf{E-step} (update slots \(\bm{\mu}_i\)) and \textbf{M-step} (update \(\bm{W}_K,\bm{W}_Q\)).
+    \end{frame}
+    %======================================================
+    
+%======================================================
+\begin{frame}{Coordinate Ascent}
+    \large
+    \textbf{M-step: Update Parameters}
+    
+    Given fixed slots \(\{\bm{\mu}_i\}\) and attention \(\mathbf{A}\), we update \(\bm{W}_K, \bm{W}_Q\). We consider minimizing
+    \[
+    \min_{\bm{W}_K,\bm{W}_Q}
+    \sum_{j=1}^N\sum_{i=1}^S
+    A_{ji}\,\Bigl\|\bm{W}_K\bm{x}_j - \bm{W}_Q\bm{\mu}_i\Bigr\|^2.
+    \]
+    Setting the gradient to zero yields a weighted least-squares problem in \(\bm{W}_K\) and \(\bm{W}_Q\).
+    
+    \bigskip
+    \textbf{Key idea:}
+    \begin{itemize}
+    \item \(\mathbf{A}\) is fixed (like responsibilities in EM).
+    \item Solve for \(\bm{W}_K,\bm{W}_Q\) in closed form.
+    \end{itemize}
+    \end{frame}
+    %======================================================
+    
+%======================================================
+\begin{frame}{Coordinate Ascent}
+    \large
+    \textbf{Closed-Form Updates}
+    
+    Differentiate and set to zero:
+    
+    \[
+    \bm{W}_K
+    =
+    \Bigl(\sum_{j,i}A_{ji}\,\bm{W}_Q\bm{\mu}_i\,\bm{x}_j^\top\Bigr)
+    \Bigl(\sum_{j,i}A_{ji}\,\bm{x}_j\bm{x}_j^\top\Bigr)^{-1}.
+    \]
+    
+    \[
+    \bm{W}_Q
+    =
+    \Bigl(\sum_{j,i}A_{ji}\,\bm{W}_K\bm{x}_j\,\bm{\mu}_i^\top\Bigr)
+    \Bigl(\sum_{j,i}A_{ji}\,\bm{\mu}_i\bm{\mu}_i^\top\Bigr)^{-1}.
+    \]
+    
+    \bigskip
+    
+    \textbf{Algorithm:}  
+    Alternate \underline{E-step} (update \(\{\bm{\mu}_i\}\)) and \underline{M-step} (update \(\bm{W}_K,\bm{W}_Q\)) until convergence.
+    \end{frame}
+    %======================================================
+    
+
+\begin{frame}{Open questions}
+    \begin{itemize}
+        \item Hierarchical POMDPs and hierarchical mixture models differ only in their similairty functions.
+        \item Crucially, hierarchical mixture models induce a discrete state space (in terms of their attention matrices). 
+        \item This is seen in SLDS, where we model the dynamics of the induced discrete state space (which mode is active at a given time) as a HMM. 
+        \item Is there a way to combine the two models, with continuous mixture models on the bottom and discrete mixture models on the top?
+    \end{itemize}
 \end{frame}
 
-\begin{frame}{Coordinate ascent}
-    % Content goes here
-\end{frame}
 
 
-\begin{frame}{References}
-    \bibliographystyle{abbrvnat}
-    \bibliography{main}
-\end{frame}
+% \begin{frame}{References}
+%     \bibliographystyle{abbrvnat}
+%     \bibliography{main}
+% \end{frame}
 
 \end{document}
