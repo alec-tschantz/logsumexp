@@ -23,6 +23,11 @@
 
 \section{$\log \sum \exp$ framework}
 
+\begin{frame}
+    \centering
+    \Huge $\log \sum \exp$ framework
+\end{frame}
+
 %======================================================
 \begin{frame}{$\log \sum \exp$ energy}
     \large
@@ -98,7 +103,30 @@
 \end{frame}
 %======================================================
 
-
+\begin{frame}{$\log \sum \exp$ graphical models}
+    
+    For a single node \(\bm{v}_a\), the gradient of the global energy \(E\) w.r.t.\ \(\bm{v}_a\) decomposes into two terms. Let \(\mathcal{M}_c(a) = \{m : a \in C_m\}\) denote the energy functions where \(\bm{v}_a\) acts as a \emph{child}, and \(\mathcal{M}_p(a) = \{m : a \in P_m\}\) the energy functions where \(\bm{v}_a\) acts as a \emph{parent}. Then:
+   \begin{equation}
+   \begin{aligned}
+   -\frac{\partial E}{\partial \bm{v}_a}
+   \;=\;&
+   \underbrace{
+   \sum_{m \in \mathcal{M}_c(a)} \sum_{p \in P_m}
+   \text{softmax}_{p} \Bigl(\mathrm{sim}(\bm{v}_a, \bm{v}_p)\Bigr)\,
+   \frac{\partial}{\partial \bm{v}_a}
+   \mathrm{sim}\bigl(\bm{v}_a, \bm{v}_p\bigr)
+   }_{\text{\(\bm{v}_a\) acting as a child}} \\
+   &+
+   \underbrace{
+   \sum_{m \in \mathcal{M}_p(a)} \sum_{c \in C_m}
+   \text{softmax}_{a} \Bigl(\mathrm{sim}(\bm{v}_c, \bm{v}_a)\Bigr)\,
+   \frac{\partial}{\partial \bm{v}_a}
+   \mathrm{sim}\bigl(\bm{v}_c, \bm{v}_a\bigr)
+   }_{\text{\(\bm{v}_a\) acting as a parent}}.
+   \end{aligned}
+   \end{equation}
+   \end{frame}
+   
 
 %======================================================
 \begin{frame}{$\log \sum \exp$ expectation maximisation}
@@ -126,7 +154,6 @@
 %======================================================
 
 
-
 %======================================================
 \begin{frame}[fragile]{$\log \sum \exp$ framework}
 
@@ -148,6 +175,12 @@ dx = grad(energy)(x, y)
 
 %======================================================
 \section{$\log \sum \exp$ examples}
+
+\begin{frame}
+    \centering
+    \Huge $\log \sum \exp$ examples
+\end{frame}
+
 
 %======================================================
 \begin{frame}{Gaussian Mixture Model}
@@ -202,6 +235,8 @@ Solving for zero gives the fixed point update for \(\bm{\mu}_k\):
      {\sum_{i=1}^N \alpha_{i,k}}.
 \]
 \end{frame}
+
+
 %======================================================
 
 % %======================================================
@@ -678,6 +713,14 @@ Solving for zero gives the fixed point update for \(\bm{\mu}_k\):
 
 \section{$\log \sum \exp$ graphical models}
 
+
+\begin{frame}
+    \centering
+    \Huge $\log \sum \exp$ graphical models
+\end{frame}
+
+
+
 %======================================================
 \begin{frame}{Block-slot Attention}
 
@@ -801,6 +844,10 @@ Solving for zero gives the fixed point update for \(\bm{\mu}_k\):
     
 
 \section{$\log \sum \exp$ spatio-temporal model}
+\begin{frame}
+    \centering
+    \Huge $\log \sum \exp$ spatio-temporal model
+\end{frame}
 
 %======================================================
 %======================================================
@@ -972,6 +1019,11 @@ By merging inter-layer, intra-layer, and temporal connections into a single larg
 
 \section{Renormalised mixture models}
 
+\begin{frame}
+    \centering
+    \Huge Renormalised mixture model
+\end{frame}
+
 %======================================================
 
 \begin{frame}{Renormalised mixture models}
@@ -990,6 +1042,7 @@ By merging inter-layer, intra-layer, and temporal connections into a single larg
 
 %======================================================
 \begin{frame}{Renormalised Mixture Model}
+    % TODO: add temporal receptive field.
 
     Each variable \(\bm{x}_{k,t}^{(l)}\) at layer \(l\) is explained only by a local receptive field \(\mathcal{R}_{k}^{(l)}\) in layer \(l-1\):
     \[
@@ -1158,6 +1211,23 @@ By merging inter-layer, intra-layer, and temporal connections into a single larg
     \end{itemize}
 \end{frame}
 
+
+\begin{frame}{Model}
+    \begin{equation}
+    \begin{aligned}
+        &-\sum_{t=1}^{T}
+        \ln \Biggl(
+        \sum_{m_1=1}^{M_1} \sum_{m_2=1}^{M_2} \sum_{m_3=1}^{M_3} \\
+        &\exp\bigl( \\
+        &\mathrm{sim}_{collison}(\bm{x}_t, m_1) \\
+        &+\mathrm{sim}_{gmm}(\bm{x}_t, m_1) \\
+        &+\mathrm{sim}_{mlp}(\bm{x}_t, m_3) \\
+        &+\mathrm{sim}_{slds}(\bm{x}_{t}, \bm{x}_{t+1}, m_1, m_2, m_3) \\
+        &\bigr) \Biggr).
+    \end{aligned}
+    \end{equation}
+        
+\end{frame}
 
 
 % \begin{frame}{References}
