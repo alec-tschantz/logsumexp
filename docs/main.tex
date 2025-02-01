@@ -885,6 +885,97 @@ The normalized outputs are obtained as the derivative of the energy with respect
     Alternate between the E-step (updating \(\{\bm{\mu}_i\}\)) and the M-step (updating \(\bm{W}_K,\bm{W}_Q\)) until convergence.
 
 
+    \section{Capsule Networks via Energy-based Hierarchical Routing}
+\label{sec:capsule-energy}
+
+In this section, we extend the general energy-based attention framework to formulate a capsule network architecture. In our approach, the dynamic routing between lower-level (child) and higher-level (parent) capsules is derived as gradient updates that minimize an energy function defined via a log-sum-exp over similarity scores. This provides a principled probabilistic interpretation for routing and enables an EM-like procedure for updating both the capsule representations and the associated transformation parameters.
+
+\subsection*{Setup}
+Let the lower-level capsules (or feature detectors) be denoted by
+\[
+\bm{x}_j \in \mathbb{R}^{d_x}, \quad j \in \{1,\ldots,N\},
+\]
+and the higher-level capsules (or entity representations) by
+\[
+\bm{\mu}_i \in \mathbb{R}^{d_\mu}, \quad i \in \{1,\ldots,S\}.
+\]
+Each lower-level capsule is projected into a set of \emph{vote vectors} for the higher-level capsules. For simplicity, we introduce learnable linear maps \(\bm{W}_K \in \mathbb{R}^{d' \times d_x}\) for the children and \(\bm{W}_Q \in \mathbb{R}^{d' \times d_\mu}\) for the parents, and define the similarity between a child and a parent as
+\begin{equation}
+\mathrm{sim}\bigl(\bm{x}_j,\bm{\mu}_i\bigr)
+\;=\;
+\bigl(\bm{W}_K\,\bm{x}_j\bigr)^\top \bigl(\bm{W}_Q\,\bm{\mu}_i\bigr).
+\end{equation}
+This similarity serves as a measure of compatibility between the vote of a lower-level capsule and the state of a higher-level capsule.
+
+\subsection*{Energy Formulation}
+Following the general framework, we define an energy function for the routing process:
+\begin{equation}
+E^{\mathrm{Caps}}\!\Bigl(\{\bm{x}_j\}, \{\bm{\mu}_i\}\Bigr)
+\;=\;
+-\sum_{j=1}^N \ln \Biggl(\sum_{i=1}^S \exp\Bigl(\mathrm{sim}\bigl(\bm{x}_j,\bm{\mu}_i\bigr)\Bigr)\Biggr).
+\end{equation}
+Minimizing \(E^{\mathrm{Caps}}\) encourages every lower-level capsule to be well explained by at least one higher-level capsule, thereby establishing a soft assignment between children and parents.
+
+\subsection*{Dynamic Routing via Energy Minimization}
+To route information from lower-level capsules to higher-level capsules, we minimize the energy with respect to the parent representations \(\{\bm{\mu}_i\}\). The gradient with respect to a parent capsule is
+\begin{equation}
+-\frac{\partial E^{\mathrm{Caps}}}{\partial \bm{\mu}_i}
+\;=\;
+\sum_{j=1}^N
+\text{softmax}_{i}\!\Bigl(\mathrm{sim}\bigl(\bm{x}_j,\bm{\mu}_i\bigr)\Bigr)
+\,\frac{\partial}{\partial \bm{\mu}_i} \mathrm{sim}\bigl(\bm{x}_j,\bm{\mu}_i\bigr).
+\end{equation}
+Given our similarity function,
+\[
+\frac{\partial}{\partial \bm{\mu}_i}\,\mathrm{sim}\bigl(\bm{x}_j,\bm{\mu}_i\bigr)
+\;=\;
+\bm{W}_Q^\top \bigl(\bm{W}_K\,\bm{x}_j\bigr),
+\]
+so that the update for each capsule becomes
+\begin{equation}
+\bm{\mu}_i \;\leftarrow\; \bm{\mu}_i
+\;+\; \eta\, \sum_{j=1}^N
+\underbrace{\text{softmax}_{i}\!\Bigl(\bigl(\bm{W}_K\,\bm{x}_j\bigr)^\top (\bm{W}_Q\,\bm{\mu}_i)\Bigr)}_{c_{ij}}
+\,\bm{W}_Q^\top \bigl(\bm{W}_K\,\bm{x}_j\bigr),
+\end{equation}
+where \(\eta\) is a step-size parameter and
+\[
+c_{ij} = \text{softmax}_{i}\!\Bigl(\bigl(\bm{W}_K\,\bm{x}_j\bigr)^\top (\bm{W}_Q\,\bm{\mu}_i)\Bigr)
+\]
+plays the role of the routing coefficient, assigning a weight to the contribution of child \(j\) for parent \(i\).
+
+\subsection*{Interpretation as Capsule Routing}
+The routing coefficients \(c_{ij}\) determine how strongly each lower-level capsule \(\bm{x}_j\) votes for a particular higher-level capsule \(\bm{\mu}_i\). In our framework, these coefficients emerge naturally from the softmax over the energy-based similarity, and the capsule update is given by
+\begin{equation}
+\bm{\mu}_i \;\leftarrow\; \sum_{j=1}^N c_{ij}\, \tilde{\bm{v}}_{ij},
+\quad \text{with} \quad \tilde{\bm{v}}_{ij} = \bm{W}_Q^\top \bigl(\bm{W}_K\,\bm{x}_j\bigr).
+\end{equation}
+This update mirrors the dynamic routing mechanism in capsule networks, where each parent capsule aggregates “votes” from the children weighted by their routing coefficients.
+
+\subsection*{EM-like Parameter Updates}
+In addition to updating the capsule representations, we can update the transformation matrices \(\bm{W}_K\) and \(\bm{W}_Q\) in an M-step. Given fixed capsules and routing coefficients, we minimize the weighted least-squares objective
+\begin{equation}
+\min_{\bm{W}_K,\bm{W}_Q} \; \sum_{j=1}^N\sum_{i=1}^S c_{ij}\,
+\Bigl\|\bm{W}_K\,\bm{x}_j - \bm{W}_Q\,\bm{\mu}_i\Bigr\|^2.
+\end{equation}
+The stationary conditions for this quadratic form yield closed-form updates:
+\[
+\bm{W}_Q
+\;=\;
+\left(\sum_{j,i} c_{ij}\,\bm{W}_K\,\bm{x}_j\,\bm{\mu}_i^\top\right)
+\left(\sum_{j,i} c_{ij}\,\bm{\mu}_i\,\bm{\mu}_i^\top\right)^{-1},
+\]
+\[
+\bm{W}_K
+\;=\;
+\left(\sum_{j,i} c_{ij}\,\bm{W}_Q\,\bm{\mu}_i\,\bm{x}_j^\top\right)
+\left(\sum_{j,i} c_{ij}\,\bm{x}_j\,\bm{x}_j^\top\right)^{-1}.
+\]
+By alternating between the E-step (updating \(\{\bm{\mu}_i\}\) via gradient descent on \(E^{\mathrm{Caps}}\)) and the M-step (updating \(\bm{W}_K\) and \(\bm{W}_Q\)), we obtain a complete EM-like algorithm that jointly optimizes the capsule representations and the transformation parameters.
+
+\subsection*{Summary}
+This section has developed a capsule network model within our unified energy-based attention framework. The routing of information from lower-level capsules to higher-level capsules is interpreted as minimizing an energy function defined by log-sum-exp similarities. The softmax over similarities naturally produces routing coefficients, and iterative gradient updates correspond to the dynamic routing procedure of capsule networks. An EM-like parameter update further refines the transformation matrices, providing a principled and interpretable approach to building capsule networks.
+
   
     
     
